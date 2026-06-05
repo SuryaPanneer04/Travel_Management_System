@@ -109,7 +109,13 @@ require_once '../includes/header.php';
                         <?php endif; ?>
                     </td> -->
                     <td>
-                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-clock me-1"></i> Pending</span>
+                        <?php if (isset($row['status']) && $row['status'] === 'Completed'): ?>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-check-circle me-1"></i> Completed</span>
+                        <?php elseif (isset($row['status']) && $row['status'] === 'Processing'): ?>
+                            <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-spinner fa-spin me-1"></i> Processing</span>
+                        <?php else: ?>
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-clock me-1"></i> Pending</span>
+                        <?php endif; ?>
                     </td>
                     <td class="text-center">
                         <?php 

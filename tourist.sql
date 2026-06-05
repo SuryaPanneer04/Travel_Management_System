@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 27, 2026 at 01:33 PM
+-- Generation Time: Jun 03, 2026 at 01:23 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -37,49 +37,23 @@ CREATE TABLE `arrangements` (
   `driver_name` varchar(100) DEFAULT NULL,
   `driver_contact` varchar(20) DEFAULT NULL,
   `pickup_time` datetime DEFAULT NULL,
-  `hotel_details` text DEFAULT NULL,
+  `cab_voucher` varchar(255) DEFAULT NULL,
   `room_no` varchar(50) DEFAULT NULL,
-  `other_details` text DEFAULT NULL,
+  `hotel_voucher` varchar(255) DEFAULT NULL,
   `assigned_by` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `flight_arrangement` text DEFAULT NULL,
-  `food_arrangement` text DEFAULT NULL,
   `flight_details` varchar(255) DEFAULT NULL,
+  `flight_ticket` varchar(255) DEFAULT NULL,
   `reach_time` datetime DEFAULT NULL,
   `arrival_date` date DEFAULT NULL,
   `arrival_time` time DEFAULT NULL,
-  `pnr_number` varchar(50) DEFAULT NULL
+  `pnr_number` varchar(50) DEFAULT NULL,
+  `return_flight_details` varchar(255) DEFAULT NULL,
+  `return_flight_ticket` varchar(255) DEFAULT NULL,
+  `return_pnr_number` varchar(50) DEFAULT NULL,
+  `return_date` date DEFAULT NULL,
+  `return_time` time DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `arrangements`
---
-
-INSERT INTO `arrangements` (`id`, `tourist_id`, `hotel_id`, `check_in`, `check_out`, `cab_no`, `driver_name`, `driver_contact`, `pickup_time`, `hotel_details`, `room_no`, `other_details`, `assigned_by`, `created_at`, `flight_arrangement`, `food_arrangement`, `flight_details`, `reach_time`, `arrival_date`, `arrival_time`, `pnr_number`) VALUES
-(2, 13, 6, '2026-05-28 12:01:00', '2026-05-29 12:01:00', '3', 'Kumar', '9884012346', '2026-05-28 11:10:00', NULL, '202', NULL, 2, '2026-05-27 11:31:46', NULL, NULL, 'Indigo', '2026-05-28 09:00:00', '2026-05-28', '11:00:00', 'AB1212');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `arrival_details`
---
-
-CREATE TABLE `arrival_details` (
-  `id` int(11) NOT NULL,
-  `tourist_id` int(11) NOT NULL,
-  `people_count` int(11) DEFAULT 1,
-  `stay_days` int(11) DEFAULT 1,
-  `places_to_visit` text DEFAULT NULL,
-  `requirements` text DEFAULT NULL,
-  `submitted_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `arrival_details`
---
-
-INSERT INTO `arrival_details` (`id`, `tourist_id`, `people_count`, `stay_days`, `places_to_visit`, `requirements`, `submitted_at`) VALUES
-(4, 13, 1, 2, 'Ooty', 'testing', '2026-05-27 11:26:45');
 
 -- --------------------------------------------------------
 
@@ -122,20 +96,6 @@ INSERT INTO `cabs` (`id`, `provider_name`, `location`, `vehicle_type`, `vehicle_
 -- --------------------------------------------------------
 
 --
--- Table structure for table `checklists`
---
-
-CREATE TABLE `checklists` (
-  `id` int(11) NOT NULL,
-  `tourist_id` int(11) NOT NULL,
-  `item_description` varchar(255) NOT NULL,
-  `assigned_by` int(11) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `food_arrangements`
 --
 
@@ -148,13 +108,6 @@ CREATE TABLE `food_arrangements` (
   `dinner` varchar(255) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `food_arrangements`
---
-
-INSERT INTO `food_arrangements` (`id`, `tourist_id`, `day_number`, `breakfast`, `lunch`, `dinner`, `created_at`) VALUES
-(4, 13, 1, 'idly', 'meals', 'chappathi', '2026-05-27 11:31:54');
 
 -- --------------------------------------------------------
 
@@ -214,8 +167,8 @@ CREATE TABLE `itineraries` (
 --
 
 INSERT INTO `itineraries` (`id`, `tourist_id`, `day_number`, `start_time`, `end_time`, `place_name`, `activity`, `assigned_by`, `created_at`) VALUES
-(1, 12, 1, '10:40:00', '17:40:00', 'marina beach', 'photoshoot', 2, '2026-05-27 11:10:39'),
-(2, 13, 1, '05:02:00', '06:03:00', 'marina beach', 'photoshoot', 2, '2026-05-27 11:32:16');
+(8, 23, 1, '10:30:00', '11:25:00', 'marina beach', 'photoshoot', 2, '2026-06-01 03:55:42'),
+(9, 27, 1, '18:31:00', '22:31:00', 'marina beach', 'photoshoot', 2, '2026-06-03 07:02:06');
 
 -- --------------------------------------------------------
 
@@ -287,7 +240,8 @@ CREATE TABLE `mail_templates` (
 INSERT INTO `mail_templates` (`id`, `name`, `template_key`, `subject`, `body`, `placeholders`, `status`) VALUES
 (1, 'User Account Credentials', 'user_credentials', 'Your Tourist Account Credentials', '<h2>Hello {{full_name}}!</h2><p>Your user account email is: <strong>{{email}}</strong> and password is: <strong>{{password}}</strong></p><p>Please log in and update your profile.</p>', '{{full_name}},{{email}},{{password}}', 'active'),
 (3, 'Welcome Email', 'welcome_email', 'Welcome to Our Tourist Service - Action Required', '<h2>Hello {{name}}!</h2><p>Welcome to our service. Please verify your email to complete your registration and provide arrival details.</p><p><a href=\"{{verify_link}}\" style=\"background:#10b981; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;\">Verify Email & Provide Details</a></p><p>If the button doesn\'t work, copy this link: {{verify_link}}</p>', '{{name}},{{verify_link}}', 'active'),
-(4, 'OTP Verification', 'otp_verification', 'Your OTP for Tourist Verification', '<h2>OTP Verification</h2><p>Hello {{name}},</p><p>Your OTP for verifying your email is: <strong>{{otp}}</strong></p><p>Enter this OTP on the verification page to continue.</p>', '{{name}},{{otp}}', 'active');
+(4, 'OTP Verification', 'otp_verification', 'Your OTP for Tourist Verification', '<h2>OTP Verification</h2><p>Hello {{name}},</p><p>Your OTP for verifying your email is: <strong>{{otp}}</strong></p><p>Enter this OTP on the verification page to continue.</p>', '{{name}},{{otp}}', 'active'),
+(5, 'Schedule Ready', 'schedule_ready', 'Your Trip Schedule is Ready', '<h2>Hello {{name}}!</h2><p>Your trip schedule has been finalized. We have arranged your accommodations, transportation, and itinerary.</p><p><a href=\"{{schedule_link}}\" style=\"background:#10b981; color:white; padding:10px 20px; display:inline-block; text-decoration:none; border-radius:5px;\">View Your Schedule</a></p><br><p>If the button doesn\'t work, copy this link: {{schedule_link}}</p>', '{{name}},{{schedule_link}}', 'active');
 
 -- --------------------------------------------------------
 
@@ -310,6 +264,31 @@ INSERT INTO `theme_settings` (`id`, `sidebar_bg_color`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `tourist_companions`
+--
+
+CREATE TABLE `tourist_companions` (
+  `id` int(11) NOT NULL,
+  `tourist_id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `age` int(11) DEFAULT NULL,
+  `passport_number` varchar(100) DEFAULT NULL,
+  `passport_validation` date DEFAULT NULL,
+  `passport_scan` varchar(255) DEFAULT NULL,
+  `signature` varchar(255) DEFAULT NULL,
+  `visa_scan` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tourist_companions`
+--
+
+INSERT INTO `tourist_companions` (`id`, `tourist_id`, `name`, `age`, `passport_number`, `passport_validation`, `passport_scan`, `signature`, `visa_scan`) VALUES
+(2, 28, 'priya', 36, '638273821', '2029-06-20', 'uploads/1780482320_c0_download.jpg', 'uploads/1780482320_c0_download.jpg', 'uploads/1780482320_c0_download.jpg');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `tourist_entries`
 --
 
@@ -317,46 +296,30 @@ CREATE TABLE `tourist_entries` (
   `id` int(11) NOT NULL,
   `name` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
-  `gender` varchar(20) NOT NULL,
-  `id_proof` varchar(255) DEFAULT NULL,
-  `people_count` int(11) DEFAULT 1,
+  `age` int(11) DEFAULT NULL,
+  `passport_number` varchar(100) DEFAULT NULL,
+  `passport_validation` date DEFAULT NULL,
+  `purpose_of_travel` varchar(255) DEFAULT NULL,
+  `travel_start_date` date DEFAULT NULL,
+  `travel_end_date` date DEFAULT NULL,
   `stay_days` int(11) DEFAULT 1,
+  `visa_type` varchar(150) NOT NULL,
+  `travel_country` varchar(100) DEFAULT NULL,
   `employee_id` int(11) DEFAULT NULL,
-  `verification_status` tinyint(1) DEFAULT 0,
   `token` varchar(100) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `passport_scan` varchar(255) DEFAULT NULL,
+  `signature` varchar(255) DEFAULT NULL,
+  `visa_scan` varchar(255) DEFAULT NULL,
+  `status` enum('Pending','Processing','Completed') DEFAULT 'Pending'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `tourist_entries`
 --
 
-INSERT INTO `tourist_entries` (`id`, `name`, `email`, `gender`, `id_proof`, `people_count`, `stay_days`, `employee_id`, `verification_status`, `token`, `created_at`) VALUES
-(13, 'surya', 'suryapanneer04@gmail.com', 'Male', '232131312', 1, 2, 2, 1, 'e418e116ef318b8c712a0ce291618d82', '2026-05-27 11:25:27');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `tourist_passengers`
---
-
-CREATE TABLE `tourist_passengers` (
-  `id` int(11) NOT NULL,
-  `tourist_id` int(11) NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `contact` varchar(20) DEFAULT NULL,
-  `id_proof` varchar(100) DEFAULT NULL,
-  `age` int(11) DEFAULT NULL,
-  `food_type` enum('veg','non-veg') NOT NULL DEFAULT 'veg',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `tourist_passengers`
---
-
-INSERT INTO `tourist_passengers` (`id`, `tourist_id`, `name`, `contact`, `id_proof`, `age`, `food_type`, `created_at`) VALUES
-(5, 13, 'surya', '9384178442', '37128732983', 21, 'veg', '2026-05-27 11:26:45');
+INSERT INTO `tourist_entries` (`id`, `name`, `email`, `age`, `passport_number`, `passport_validation`, `purpose_of_travel`, `travel_start_date`, `travel_end_date`, `stay_days`, `visa_type`, `travel_country`, `employee_id`, `token`, `created_at`, `passport_scan`, `signature`, `visa_scan`, `status`) VALUES
+(28, 'surya', 'suryapanneer04@gmail.com', 21, '7393731273', '2029-06-03', 'Tourism', '2026-06-10', '2026-06-12', 2, 'Multiple Entry Visa', 'India', 2, 'efa87c1a75b693062761b4430d32729d', '2026-06-03 10:25:20', 'uploads/1780482320_download.jpg', 'uploads/1780482320_download.jpg', 'uploads/1780482320_download.jpg', 'Pending');
 
 -- --------------------------------------------------------
 
@@ -372,36 +335,19 @@ CREATE TABLE `users` (
   `full_name` varchar(100) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `email` varchar(150) DEFAULT NULL,
-  `number` varchar(20) DEFAULT NULL
+  `number` varchar(20) DEFAULT NULL,
+  `department` varchar(150) DEFAULT NULL,
+  `country` varchar(150) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `password`, `role`, `full_name`, `created_at`, `email`, `number`) VALUES
-(1, 'admin', '$2y$10$/rlfsCMr1mfsBU3QzP8p4.R/.ccwtYmI0HHOT0TkgKOrxNPE/y41q', 'admin', 'Super Admin', '2026-05-15 10:23:44', NULL, NULL),
-(2, 'emp1', '$2y$10$T1mZJmKraZ6FmqjP4Q8F..e.4gI9srhx11/hUI0rCM7x6D8ZLpp9O', 'employee', 'John Employee', '2026-05-15 10:23:44', NULL, NULL);
-
--- --------------------------------------------------------
-
---
--- Table structure for table `verifications`
---
-
-CREATE TABLE `verifications` (
-  `id` int(11) NOT NULL,
-  `tourist_id` int(11) NOT NULL,
-  `otp` varchar(10) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `verifications`
---
-
-INSERT INTO `verifications` (`id`, `tourist_id`, `otp`, `created_at`) VALUES
-(7, 13, '970231', '2026-05-27 11:25:59');
+INSERT INTO `users` (`id`, `username`, `password`, `role`, `full_name`, `created_at`, `email`, `number`, `department`, `country`) VALUES
+(1, 'admin', '$2y$10$/rlfsCMr1mfsBU3QzP8p4.R/.ccwtYmI0HHOT0TkgKOrxNPE/y41q', 'admin', 'Super Admin', '2026-05-15 10:23:44', 'admin@gmail.com', NULL, 'Management', NULL),
+(2, 'india', '$2y$10$T1mZJmKraZ6FmqjP4Q8F..e.4gI9srhx11/hUI0rCM7x6D8ZLpp9O', 'employee', 'India HR', '2026-05-15 10:23:44', 'suryapanneer04@gmail.com', NULL, 'HR', 'India'),
+(7, 'japanHR', '$2y$10$QyWPZqpPNYw1PKc4HTgPZOr0vH0GOPxy9x21kTpDoDmEQvHuqPmdi', 'employee', 'japan', '2026-06-02 11:38:53', 'japanhr@gmail.com', '2323232', 'HR', 'Japan');
 
 --
 -- Indexes for dumped tables
@@ -414,21 +360,9 @@ ALTER TABLE `arrangements`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `arrival_details`
---
-ALTER TABLE `arrival_details`
-  ADD PRIMARY KEY (`id`);
-
---
 -- Indexes for table `cabs`
 --
 ALTER TABLE `cabs`
-  ADD PRIMARY KEY (`id`);
-
---
--- Indexes for table `checklists`
---
-ALTER TABLE `checklists`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -477,15 +411,16 @@ ALTER TABLE `theme_settings`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `tourist_companions`
+--
+ALTER TABLE `tourist_companions`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `tourist_id` (`tourist_id`);
+
+--
 -- Indexes for table `tourist_entries`
 --
 ALTER TABLE `tourist_entries`
-  ADD PRIMARY KEY (`id`);
-
---
--- Indexes for table `tourist_passengers`
---
-ALTER TABLE `tourist_passengers`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -496,12 +431,6 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `username` (`username`);
 
 --
--- Indexes for table `verifications`
---
-ALTER TABLE `verifications`
-  ADD PRIMARY KEY (`id`);
-
---
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -509,13 +438,7 @@ ALTER TABLE `verifications`
 -- AUTO_INCREMENT for table `arrangements`
 --
 ALTER TABLE `arrangements`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT for table `arrival_details`
---
-ALTER TABLE `arrival_details`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `cabs`
@@ -524,16 +447,10 @@ ALTER TABLE `cabs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
--- AUTO_INCREMENT for table `checklists`
---
-ALTER TABLE `checklists`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT for table `food_arrangements`
 --
 ALTER TABLE `food_arrangements`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `hotels`
@@ -545,7 +462,7 @@ ALTER TABLE `hotels`
 -- AUTO_INCREMENT for table `itineraries`
 --
 ALTER TABLE `itineraries`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `locations`
@@ -563,7 +480,7 @@ ALTER TABLE `mail_settings`
 -- AUTO_INCREMENT for table `mail_templates`
 --
 ALTER TABLE `mail_templates`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `theme_settings`
@@ -572,27 +489,21 @@ ALTER TABLE `theme_settings`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT for table `tourist_companions`
+--
+ALTER TABLE `tourist_companions`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
 -- AUTO_INCREMENT for table `tourist_entries`
 --
 ALTER TABLE `tourist_entries`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
-
---
--- AUTO_INCREMENT for table `tourist_passengers`
---
-ALTER TABLE `tourist_passengers`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT for table `verifications`
---
-ALTER TABLE `verifications`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
@@ -604,6 +515,12 @@ ALTER TABLE `verifications`
 --
 ALTER TABLE `food_arrangements`
   ADD CONSTRAINT `food_arrangements_ibfk_1` FOREIGN KEY (`tourist_id`) REFERENCES `tourist_entries` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `tourist_companions`
+--
+ALTER TABLE `tourist_companions`
+  ADD CONSTRAINT `tourist_companions_ibfk_1` FOREIGN KEY (`tourist_id`) REFERENCES `tourist_entries` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

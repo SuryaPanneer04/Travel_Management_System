@@ -184,6 +184,7 @@ try {
         <?php else: ?>
             <a class="nav-link <?= ($current_page == 'dashboard.php') ? 'active' : '' ?>" href="<?= $base_url ?>employee/dashboard.php"><i class="fas fa-home"></i> <span>Dashboard</span></a>
             <a class="nav-link <?= ($current_page == 'checklist.php') ? 'active' : '' ?>" href="<?= $base_url ?>employee/checklist.php"><i class="fas fa-clipboard-list"></i> <span>Manage Schedule</span></a>
+            <a class="nav-link <?= ($current_page == 'invitationapproval.php') ? 'active' : '' ?>" href="<?= $base_url ?>employee/invitationapproval.php"><i class="fas fa-envelope-open-text"></i> <span>Invitation Approvals</span></a>
             <a class="nav-link <?= ($current_page == 'change_password.php') ? 'active' : '' ?>" href="<?= $base_url ?>change_password.php"><i class="fas fa-key"></i> <span>Change Password</span></a>
         <?php endif; ?>
         

@@ -13,6 +13,18 @@ if (isset($_GET['error']) && $_GET['error'] === 'unauthorized') {
     $error = "You are not authorized to view or manage that travel request.";
 }
 
+// Handle Manual Status Update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
+    $tId = $_POST['tourist_id'];
+    $newStatus = $_POST['status'];
+    try {
+        $pdo->prepare("UPDATE tourist_entries SET status = ? WHERE id = ?")->execute([$newStatus, $tId]);
+        $success = "Status updated to $newStatus.";
+    } catch (PDOException $e) {
+        $error = 'Error updating status: ' . $e->getMessage();
+    }
+}
+
 // Handle Arrangement Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_arrangements'])) {
     $tId = $_POST['tourist_id'];
@@ -31,19 +43,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_arrangements']))
     $reach_time = !empty($_POST['reach_time']) ? $_POST['reach_time'] : null;
     $arrival_date = !empty($_POST['arrival_date']) ? $_POST['arrival_date'] : null;
     $arrival_time = !empty($_POST['arrival_time']) ? $_POST['arrival_time'] : null;
+
+    // Return flight configuration fields
+    $return_flight_details = $_POST['return_flight_details'] ?? '';
+    $return_pnr_number = $_POST['return_pnr_number'] ?? '';
+    $return_date = !empty($_POST['return_date']) ? $_POST['return_date'] : null;
+    $return_time = !empty($_POST['return_time']) ? $_POST['return_time'] : null;
     
-    try {
-        $check = $pdo->prepare("SELECT id FROM arrangements WHERE tourist_id = ?");
-        $check->execute([$tId]);
-        if ($check->fetch()) {
-            $stmt = $pdo->prepare("UPDATE arrangements SET cab_no = ?, driver_name = ?, driver_contact = ?, pickup_time = ?, hotel_id = ?, check_in = ?, check_out = ?, room_no = ?, flight_details = ?, reach_time = ?, arrival_date = ?, arrival_time = ?, pnr_number = ?, assigned_by = ? WHERE tourist_id = ?");
-            $stmt->execute([$cabId, $driver, $contact, $pickup, $hotelId, $checkIn, $checkOut, $room, $flight_details, $reach_time, $arrival_date, $arrival_time, $pnr_number, $_SESSION['user_id'], $tId]);
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO arrangements (tourist_id, cab_no, driver_name, driver_contact, pickup_time, hotel_id, check_in, check_out, room_no, flight_details, reach_time, arrival_date, arrival_time, pnr_number, assigned_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$tId, $cabId, $driver, $contact, $pickup, $hotelId, $checkIn, $checkOut, $room, $flight_details, $reach_time, $arrival_date, $arrival_time, $pnr_number, $_SESSION['user_id']]);
+    // File upload handler
+    $uploadDir = '../uploads/documents/';
+    if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+    $uploadedFiles = [];
+    $fileFields = ['flight_ticket', 'return_flight_ticket', 'hotel_voucher', 'cab_voucher'];
+
+    foreach ($fileFields as $field) {
+        if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+            $tmpName = $_FILES[$field]['tmp_name'];
+            $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
+            $newName = uniqid($field . '_' . $tId . '_') . '.' . $ext;
+            if (move_uploaded_file($tmpName, $uploadDir . $newName)) {
+                $uploadedFiles[$field] = 'uploads/documents/' . $newName;
+            }
         }
-        // Just update employee ID (auto-assign if not set)
-        $pdo->prepare("UPDATE tourist_entries SET employee_id = ? WHERE id = ? AND employee_id IS NULL")->execute([$_SESSION['user_id'], $tId]);
+    }
+
+    try {
+        $check = $pdo->prepare("SELECT * FROM arrangements WHERE tourist_id = ?");
+        $check->execute([$tId]);
+        $existing = $check->fetch();
+
+        $ft = $uploadedFiles['flight_ticket'] ?? ($existing['flight_ticket'] ?? null);
+        $rft = $uploadedFiles['return_flight_ticket'] ?? ($existing['return_flight_ticket'] ?? null);
+        $hv = $uploadedFiles['hotel_voucher'] ?? ($existing['hotel_voucher'] ?? null);
+        $cv = $uploadedFiles['cab_voucher'] ?? ($existing['cab_voucher'] ?? null);
+
+        if ($existing) {
+            $stmt = $pdo->prepare("UPDATE arrangements SET cab_no = ?, driver_name = ?, driver_contact = ?, pickup_time = ?, hotel_id = ?, check_in = ?, check_out = ?, room_no = ?, flight_details = ?, reach_time = ?, arrival_date = ?, arrival_time = ?, pnr_number = ?, return_flight_details = ?, return_pnr_number = ?, return_date = ?, return_time = ?, flight_ticket = ?, return_flight_ticket = ?, hotel_voucher = ?, cab_voucher = ?, assigned_by = ? WHERE tourist_id = ?");
+            $stmt->execute([$cabId, $driver, $contact, $pickup, $hotelId, $checkIn, $checkOut, $room, $flight_details, $reach_time, $arrival_date, $arrival_time, $pnr_number, $return_flight_details, $return_pnr_number, $return_date, $return_time, $ft, $rft, $hv, $cv, $_SESSION['user_id'], $tId]);
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO arrangements (tourist_id, cab_no, driver_name, driver_contact, pickup_time, hotel_id, check_in, check_out, room_no, flight_details, reach_time, arrival_date, arrival_time, pnr_number, return_flight_details, return_pnr_number, return_date, return_time, flight_ticket, return_flight_ticket, hotel_voucher, cab_voucher, assigned_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$tId, $cabId, $driver, $contact, $pickup, $hotelId, $checkIn, $checkOut, $room, $flight_details, $reach_time, $arrival_date, $arrival_time, $pnr_number, $return_flight_details, $return_pnr_number, $return_date, $return_time, $ft, $rft, $hv, $cv, $_SESSION['user_id']]);
+        }
+        // Just update employee ID and status
+        $pdo->prepare("UPDATE tourist_entries SET employee_id = ?, status = IF(status = 'Pending', 'Processing', status) WHERE id = ?")->execute([$_SESSION['user_id'], $tId]);
         $success = 'Arrangements saved successfully as draft.';
     } catch (PDOException $e) {
         $error = 'Error saving arrangements: ' . $e->getMessage();
@@ -62,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_itinerary'])) {
     try {
         $stmt = $pdo->prepare("INSERT INTO itineraries (tourist_id, day_number, start_time, end_time, place_name, activity, assigned_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([$tId, $day, $start, $end, $place, $activity, $_SESSION['user_id']]);
+        $pdo->prepare("UPDATE tourist_entries SET status = IF(status = 'Pending', 'Processing', status) WHERE id = ?")->execute([$tId]);
         $success = 'Itinerary item added!';
     } catch (PDOException $e) {
         $error = 'Error adding itinerary: ' . $e->getMessage();
@@ -89,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_food_plan'])) {
     try {
         $stmt = $pdo->prepare("INSERT INTO food_arrangements (tourist_id, day_number, breakfast, lunch, dinner) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE breakfast = ?, lunch = ?, dinner = ?");
         $stmt->execute([$tId, $day, $breakfast, $lunch, $dinner, $breakfast, $lunch, $dinner]);
+        $pdo->prepare("UPDATE tourist_entries SET status = IF(status = 'Pending', 'Processing', status) WHERE id = ?")->execute([$tId]);
         $success = "Food plan for Day $day saved successfully!";
     } catch (PDOException $e) {
         $error = 'Error saving food plan: ' . $e->getMessage();
@@ -120,8 +164,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_trip'])) {
         }
         
         $scheduleLink = "http://" . $_SERVER['HTTP_HOST'] . "/tourist/user/view_schedule.php?token=" . $token;
-        $subject = "Your Trip Schedule is Ready";
-        $body = "Your schedule has been finalized. Link: $scheduleLink";
+        $subject = "Your Trip Schedule is Ready - Confirmed ✈️";
+        
+        $body = "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;'>
+            <div style='background-color: #10b981; padding: 20px; text-align: center; color: white;'>
+                <h2 style='margin: 0;'>Your Trip is Confirmed!</h2>
+            </div>
+            <div style='padding: 30px; background-color: #ffffff; color: #334155;'>
+                <p style='font-size: 16px;'>Hello <strong>{$touristInfo['name']}</strong>,</p>
+                <p style='font-size: 16px; line-height: 1.5;'>Great news! Your travel arrangements, including your flights, accommodation, and daily itinerary, have been professionally curated and finalized. You can also view and download your travel documents and vouchers directly from your portal.</p>
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{$scheduleLink}' style='background-color: #10b981; color: white; padding: 12px 25px; text-decoration: none; border-radius: 50px; font-weight: bold; display: inline-block;'>View Full Itinerary</a>
+                </div>
+                <p style='font-size: 14px; color: #64748b;'>If the button doesn't work, copy and paste this link into your browser:</p>
+                <p style='font-size: 12px; word-break: break-all; color: #3b82f6;'>{$scheduleLink}</p>
+            </div>
+            <div style='background-color: #f8fafc; padding: 15px; text-align: center; font-size: 12px; color: #94a3b8;'>
+                <p style='margin: 0;'>Have a safe and wonderful journey!</p>
+            </div>
+        </div>";
         
         try {
             $templateStmt = $pdo->prepare("SELECT subject, body FROM mail_templates WHERE template_key = 'schedule_ready' AND status = 'active'");
@@ -134,6 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_trip'])) {
         } catch (Exception $e) {}
         
         sendMail($touristInfo['email'], $subject, $body);
+        $pdo->prepare("UPDATE tourist_entries SET status = 'Completed' WHERE id = ?")->execute([$tId]);
         $success = 'Trip finalized and email sent to traveler successfully!';
     } catch (PDOException $e) {
         $error = 'Error finalizing trip: ' . $e->getMessage();
@@ -144,9 +207,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_trip'])) {
 $cabsMaster = $pdo->query("SELECT c.*, l.location_name FROM cabs c LEFT JOIN locations l ON c.location = l.id WHERE c.status = 'available' ORDER BY c.provider_name ASC")->fetchAll();
 $hotelsMaster = $pdo->query("SELECT h.*, l.location_name FROM hotels h LEFT JOIN locations l ON h.location = l.id WHERE h.status = 'active' ORDER BY h.hotel_name ASC")->fetchAll();
 
-// Fetch Tourist List
-$tourists = $pdo->prepare("SELECT * FROM tourist_entries WHERE employee_id = ? ORDER BY id DESC");
-$tourists->execute([$_SESSION['user_id']]);
+// Handle filtering
+$statusFilter = $_GET['filter'] ?? 'All';
+$query = "SELECT * FROM tourist_entries WHERE employee_id = ?";
+$params = [$_SESSION['user_id']];
+
+if ($statusFilter !== 'All') {
+    $query .= " AND status = ?";
+    $params[] = $statusFilter;
+}
+$query .= " ORDER BY id DESC";
+
+$tourists = $pdo->prepare($query);
+$tourists->execute($params);
 $touristList = $tourists->fetchAll();
 
 $touristData = null;
@@ -184,6 +257,13 @@ if ($touristId) {
     $stmt = $pdo->prepare("SELECT * FROM food_arrangements WHERE tourist_id = ? ORDER BY day_number ASC");
     $stmt->execute([$touristId]);
     $foodArrangements = $stmt->fetchAll();
+    
+    $invitationRequestData = null;
+    if (!empty($touristData['req_id'])) {
+        $stmt = $pdo->prepare("SELECT * FROM travellerrequest WHERE id = ?");
+        $stmt->execute([$touristData['req_id']]);
+        $invitationRequestData = $stmt->fetch();
+    }
 }
 
 if (isset($_GET['success'])) {
@@ -203,7 +283,15 @@ require_once '../includes/header.php';
             </div>
         <?php endif; ?>
         <div class="card border-0 shadow-sm p-4 mb-4">
-            <h5 class="fw-bold mb-4 text-primary"><i class="fas fa-users-cog me-2"></i>Recent Travel Requests</h5>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold text-primary m-0"><i class="fas fa-tasks me-2"></i>My Assigned Travel Requests</h5>
+                <div class="btn-group shadow-sm">
+                    <a href="checklist.php?filter=All" class="btn btn-sm <?php echo $statusFilter === 'All' ? 'btn-primary' : 'btn-outline-primary'; ?>">All</a>
+                    <a href="checklist.php?filter=Pending" class="btn btn-sm <?php echo $statusFilter === 'Pending' ? 'btn-primary' : 'btn-outline-primary'; ?>">Pending</a>
+                    <a href="checklist.php?filter=Processing" class="btn btn-sm <?php echo $statusFilter === 'Processing' ? 'btn-primary' : 'btn-outline-primary'; ?>">Processing</a>
+                    <a href="checklist.php?filter=Completed" class="btn btn-sm <?php echo $statusFilter === 'Completed' ? 'btn-primary' : 'btn-outline-primary'; ?>">Completed</a>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
@@ -228,11 +316,14 @@ require_once '../includes/header.php';
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php if ($t['employee_id']): ?>
-                                    <span class="badge bg-success-subtle text-success">Processing</span>
-                                <?php else: ?>
-                                    <span class="badge bg-warning-subtle text-warning">New Request</span>
-                                <?php endif; ?>
+                                <?php 
+                                    $badgeClass = 'bg-secondary';
+                                    $iconClass = 'fa-circle';
+                                    if ($t['status'] === 'Pending') { $badgeClass = 'bg-warning-subtle text-warning border border-warning-subtle'; $iconClass = 'fa-clock'; }
+                                    if ($t['status'] === 'Processing') { $badgeClass = 'bg-primary-subtle text-primary border border-primary-subtle'; $iconClass = 'fa-spinner fa-spin'; }
+                                    if ($t['status'] === 'Completed') { $badgeClass = 'bg-success-subtle text-success border border-success-subtle'; $iconClass = 'fa-check-circle'; }
+                                ?>
+                                <span class="badge <?php echo $badgeClass; ?> px-3 py-2 rounded-pill shadow-sm"><i class="fas <?php echo $iconClass; ?> me-1"></i> <?php echo $t['status']; ?></span>
                             </td>
                             <td>
                                 <a href="?id=<?php echo $t['id']; ?>" class="btn btn-sm btn-primary">Plan Trip <i class="fas fa-arrow-right ms-1"></i></a>
@@ -263,7 +354,18 @@ require_once '../includes/header.php';
                     <small><?php echo htmlspecialchars($touristData['email'] ?? 'N/A'); ?></small>
                 </div>
                 <div class="bg-light p-3 rounded-3 mb-3 border">
-                    <h6 class="fw-bold text-dark mb-3 small text-uppercase"><i class="fas fa-id-card me-2 text-primary"></i>Traveler Profile</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                        <h6 class="fw-bold text-dark m-0 small text-uppercase"><i class="fas fa-id-card me-2 text-primary"></i>Traveler Profile</h6>
+                        <form method="POST" class="m-0">
+                            <input type="hidden" name="tourist_id" value="<?php echo $touristId; ?>">
+                            <select name="status" class="form-select form-select-sm fw-bold border-secondary-subtle shadow-sm text-center" onchange="this.form.submit()" style="width: 125px; font-size: 0.75rem;">
+                                <option value="Pending" <?php echo $touristData['status'] === 'Pending' ? 'selected' : ''; ?>>Pending</option>
+                                <option value="Processing" <?php echo $touristData['status'] === 'Processing' ? 'selected' : ''; ?>>Processing</option>
+                                <option value="Completed" <?php echo $touristData['status'] === 'Completed' ? 'selected' : ''; ?>>Completed</option>
+                            </select>
+                            <input type="hidden" name="update_status" value="1">
+                        </form>
+                    </div>
                     <div class="d-flex flex-column gap-2 small">
                         <div class="d-flex justify-content-between border-bottom pb-1">
                             <span class="text-muted">Age:</span>
@@ -296,6 +398,28 @@ require_once '../includes/header.php';
                             </div>
                         </div>
                     </div>
+                    <?php if (isset($invitationRequestData) && $invitationRequestData): ?>
+                        <div class="mt-3 pt-3 border-top">
+                            <span class="text-muted d-block mb-2 fw-bold small text-uppercase"><i class="fas fa-link text-primary me-2"></i>Linked Invitation Request</span>
+                            <div class="bg-white p-2 rounded border shadow-sm small">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-muted">Request ID:</span>
+                                    <span class="fw-bold text-dark">#<?php echo htmlspecialchars($invitationRequestData['id']); ?></span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-muted">Address:</span>
+                                    <span class="fw-bold text-dark text-end" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?php echo htmlspecialchars($invitationRequestData['address']); ?>">
+                                        <?php echo htmlspecialchars($invitationRequestData['address']); ?>
+                                    </span>
+                                </div>
+                                <?php if (!empty($invitationRequestData['invitation_doc'])): ?>
+                                    <div class="mt-2 text-end">
+                                        <a href="../<?php echo htmlspecialchars($invitationRequestData['invitation_doc']); ?>" target="_blank" class="btn btn-sm btn-outline-primary w-100"><i class="fas fa-file-alt me-1"></i>View Invitation Doc</a>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -384,14 +508,30 @@ require_once '../includes/header.php';
                                 <!-- Summary Card -->
                                 <div class="card bg-light border-0 shadow-sm mb-3">
                                     <div class="card-body">
-                                        <h6 class="fw-bold text-primary mb-3"><i class="fas fa-clipboard-check me-2"></i>Trip Setup Saved</h6>
+                                        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                                            <h6 class="fw-bold text-primary m-0"><i class="fas fa-clipboard-check me-2"></i>Trip Setup Saved</h6>
+                                            <?php 
+                                                $totalPax = 1 + count($companionsData);
+                                                echo "<span class='badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill'>$totalPax Passenger(s)</span>";
+                                            ?>
+                                        </div>
                                         <div class="row g-3 small">
-                                            <div class="col-md-4">
-                                                <span class="text-muted d-block">Flight/Train:</span>
+                                            <div class="col-md-6">
+                                                <span class="text-muted d-block"><i class="fas fa-plane-arrival me-1"></i> Onward Flight:</span>
                                                 <span class="fw-bold"><?php echo htmlspecialchars($arrangementData['flight_details'] ?: 'N/A'); ?></span>
+                                                <?php if(!empty($arrangementData['flight_ticket'])): ?>
+                                                    <div class="mt-1"><a href="../<?php echo htmlspecialchars($arrangementData['flight_ticket']); ?>" target="_blank" class="badge bg-danger text-decoration-none"><i class="fas fa-file-pdf me-1"></i>Ticket</a></div>
+                                                <?php endif; ?>
                                             </div>
-                                            <div class="col-md-4">
-                                                <span class="text-muted d-block">Cab Selection:</span>
+                                            <div class="col-md-6">
+                                                <span class="text-muted d-block"><i class="fas fa-plane-departure me-1"></i> Return Flight:</span>
+                                                <span class="fw-bold"><?php echo htmlspecialchars($arrangementData['return_flight_details'] ?: 'N/A'); ?></span>
+                                                <?php if(!empty($arrangementData['return_flight_ticket'])): ?>
+                                                    <div class="mt-1"><a href="../<?php echo htmlspecialchars($arrangementData['return_flight_ticket']); ?>" target="_blank" class="badge bg-danger text-decoration-none"><i class="fas fa-file-pdf me-1"></i>Return Ticket</a></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="col-md-6 mt-4">
+                                                <span class="text-muted d-block"><i class="fas fa-car me-1"></i> Cab Selection:</span>
                                                 <span class="fw-bold">
                                                     <?php 
                                                         $cabName = 'N/A';
@@ -401,9 +541,12 @@ require_once '../includes/header.php';
                                                         echo htmlspecialchars($cabName);
                                                     ?>
                                                 </span>
+                                                <?php if(!empty($arrangementData['cab_voucher'])): ?>
+                                                    <div class="mt-1"><a href="../<?php echo htmlspecialchars($arrangementData['cab_voucher']); ?>" target="_blank" class="badge bg-primary text-decoration-none"><i class="fas fa-file-pdf me-1"></i>Transport Details</a></div>
+                                                <?php endif; ?>
                                             </div>
-                                            <div class="col-md-4">
-                                                <span class="text-muted d-block">Hotel Selection:</span>
+                                            <div class="col-md-6 mt-4">
+                                                <span class="text-muted d-block"><i class="fas fa-hotel me-1"></i> Hotel Selection:</span>
                                                 <span class="fw-bold">
                                                     <?php 
                                                         $hotelName = 'N/A';
@@ -413,93 +556,169 @@ require_once '../includes/header.php';
                                                         echo htmlspecialchars($hotelName);
                                                     ?>
                                                 </span>
+                                                <?php if(!empty($arrangementData['hotel_voucher'])): ?>
+                                                    <div class="mt-1"><a href="../<?php echo htmlspecialchars($arrangementData['hotel_voucher']); ?>" target="_blank" class="badge bg-success text-decoration-none"><i class="fas fa-file-pdf me-1"></i>Hotel Voucher</a></div>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
-                                        <div class="mt-3 text-end">
+                                        <div class="mt-4 text-end">
                                             <a href="checklist.php?id=<?php echo $touristId; ?>&edit_arrangements=1#headingSetup" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Edit Trip Setup</a>
                                         </div>
                                     </div>
                                 </div>
                             <?php else: ?>
-                            <form method="POST">
+                            <form method="POST" enctype="multipart/form-data">
                                 <input type="hidden" name="tourist_id" value="<?php echo $touristId; ?>">
                                 
-                                <div class="row g-3 mb-4 bg-light p-3 rounded border">
-                                    <div class="col-12 mt-0">
-                                        <span class="fw-bold text-primary small text-uppercase"><i class="fas fa-plane-arrival me-2"></i>Flight & Arrival Configuration</span>
+                                <div class="card border border-primary-subtle shadow-sm mb-4">
+                                    <div class="card-header bg-primary-subtle text-primary fw-bold text-uppercase small py-2 d-flex justify-content-between align-items-center">
+                                        <div><i class="fas fa-plane me-2"></i>Flight Configurations</div>
+                                        <?php 
+                                            $totalPax = 1 + count($companionsData);
+                                            echo "<span class='badge bg-primary rounded-pill'>$totalPax Passenger(s)</span>";
+                                        ?>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-medium text-muted small text-uppercase">Flight/Train Details <span class="text-danger">*</span></label>
-                                        <input type="text" name="flight_details" class="form-control" placeholder="e.g. Indigo 6E-123" value="<?php echo htmlspecialchars($arrangementData['flight_details'] ?? ''); ?>">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-medium text-muted small text-uppercase">Flight PNR Number <span class="text-danger">*</span></label>
-                                        <input type="text" name="pnr_number" class="form-control" placeholder="e.g. AB12CD" value="<?php echo htmlspecialchars($arrangementData['pnr_number'] ?? ''); ?>">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium text-muted small text-uppercase">Expected Reach Time <span class="text-danger">*</span></label>
-                                        <input type="datetime-local" name="reach_time" class="form-control" value="<?php echo (isset($arrangementData['reach_time']) && $arrangementData['reach_time']) ? date('Y-m-d\TH:i', strtotime($arrangementData['reach_time'])) : ''; ?>">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium text-muted small text-uppercase">Arrival Date <span class="text-danger">*</span></label>
-                                        <input type="date" name="arrival_date" class="form-control" value="<?php echo htmlspecialchars($arrangementData['arrival_date'] ?? ''); ?>">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium text-muted small text-uppercase">Arrival Time <span class="text-danger">*</span></label>
-                                        <input type="time" name="arrival_time" class="form-control" value="<?php echo htmlspecialchars($arrangementData['arrival_time'] ?? ''); ?>">
+                                    <div class="card-body p-4">
+                                        <h6 class="fw-bold text-dark border-bottom pb-2 mb-3 small text-uppercase"><i class="fas fa-plane-arrival me-2 text-primary"></i>Onward Flight (Arrival)</h6>
+                                        <div class="row g-3 mb-4">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Flight/Train Details <span class="text-danger">*</span></label>
+                                                <input type="text" name="flight_details" class="form-control" placeholder="e.g. Indigo 6E-123" value="<?php echo htmlspecialchars($arrangementData['flight_details'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Flight PNR Number <span class="text-danger">*</span></label>
+                                                <input type="text" name="pnr_number" class="form-control" placeholder="e.g. AB12CD" value="<?php echo htmlspecialchars($arrangementData['pnr_number'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-12 mt-2">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Upload Flight Ticket <span class="text-lowercase fw-normal">(Optional PDF/Image)</span></label>
+                                                <input type="file" name="flight_ticket" class="form-control form-control-sm" accept=".pdf,image/*">
+                                                <?php if(!empty($arrangementData['flight_ticket'])): ?>
+                                                    <div class="mt-1 small"><a href="../<?php echo htmlspecialchars($arrangementData['flight_ticket']); ?>" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-danger me-1"></i>View Current Ticket</a></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Expected Reach Time <span class="text-danger">*</span></label>
+                                                <input type="datetime-local" name="reach_time" class="form-control" value="<?php echo (isset($arrangementData['reach_time']) && $arrangementData['reach_time']) ? date('Y-m-d\TH:i', strtotime($arrangementData['reach_time'])) : ''; ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Arrival Date <span class="text-danger">*</span></label>
+                                                <input type="date" name="arrival_date" class="form-control" value="<?php echo htmlspecialchars($arrangementData['arrival_date'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Arrival Time <span class="text-danger">*</span></label>
+                                                <input type="time" name="arrival_time" class="form-control" value="<?php echo htmlspecialchars($arrangementData['arrival_time'] ?? ''); ?>">
+                                            </div>
+                                        </div>
+
+                                        <h6 class="fw-bold text-dark border-bottom pb-2 mb-3 small text-uppercase mt-4"><i class="fas fa-plane-departure me-2 text-primary"></i>Return Flight (Departure) <span class="text-muted fw-normal ms-2 text-lowercase" style="font-size:10px;">(Optional)</span></h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Return Flight Details</label>
+                                                <input type="text" name="return_flight_details" class="form-control" placeholder="e.g. Air India AI-456" value="<?php echo htmlspecialchars($arrangementData['return_flight_details'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Return PNR Number</label>
+                                                <input type="text" name="return_pnr_number" class="form-control" placeholder="e.g. XY98ZU" value="<?php echo htmlspecialchars($arrangementData['return_pnr_number'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Return Date</label>
+                                                <input type="date" name="return_date" class="form-control" value="<?php echo htmlspecialchars($arrangementData['return_date'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Return Time</label>
+                                                <input type="time" name="return_time" class="form-control" value="<?php echo htmlspecialchars($arrangementData['return_time'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-12 mt-2">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Upload Return Flight Ticket <span class="text-lowercase fw-normal">(Optional PDF/Image)</span></label>
+                                                <input type="file" name="return_flight_ticket" class="form-control form-control-sm" accept=".pdf,image/*">
+                                                <?php if(!empty($arrangementData['return_flight_ticket'])): ?>
+                                                    <div class="mt-1 small"><a href="../<?php echo htmlspecialchars($arrangementData['return_flight_ticket']); ?>" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-danger me-1"></i>View Current Ticket</a></div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>   
 
-                                <div class="row g-3 mb-4">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-medium text-muted small text-uppercase">Vehicle Selection <span class="text-danger">*</span></label>
-                                        <select name="cab_id" id="cab_select" class="form-select" onchange="updateDriverInfo()">
-                                            <option value="">Choose a Cab...</option>
-                                            <?php foreach ($cabsMaster as $c): ?>
-                                                <option value="<?php echo $c['id']; ?>" 
-                                                        data-driver="<?php echo htmlspecialchars($c['driver_name'] ?? ''); ?>" 
-                                                        data-contact="<?php echo htmlspecialchars($c['driver_contact'] ?? ''); ?>"
-                                                        <?php echo (isset($arrangementData['cab_no']) && $arrangementData['cab_no'] == $c['id']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($c['vehicle_number']); ?> (<?php echo htmlspecialchars($c['vehicle_type']); ?>) - <?php echo htmlspecialchars($c['location_name'] ?? 'N/A'); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
+                                <div class="card border border-info-subtle shadow-sm mb-4">
+                                    <div class="card-header bg-info-subtle text-info-emphasis fw-bold text-uppercase small py-2">
+                                        <i class="fas fa-car me-2"></i>Vehicle Selection
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-medium text-muted small text-uppercase">Pickup Time <span class="text-danger">*</span></label>
-                                        <input type="datetime-local" name="pickup_time" class="form-control" value="<?php echo (isset($arrangementData['pickup_time']) && $arrangementData['pickup_time']) ? date('Y-m-d\TH:i', strtotime($arrangementData['pickup_time'])) : ''; ?>">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <input type="text" name="driver_name" id="driver_name" class="form-control form-control-sm bg-light" value="<?php echo $arrangementData['driver_name'] ?? ''; ?>" placeholder="Driver Name" readonly>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <input type="text" name="driver_contact" id="driver_contact" class="form-control form-control-sm bg-light" value="<?php echo $arrangementData['driver_contact'] ?? ''; ?>" placeholder="Driver Contact" readonly>
+                                    <div class="card-body p-4">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Vehicle Selection <span class="text-danger">*</span></label>
+                                                <select name="cab_id" id="cab_select" class="form-select" onchange="updateDriverInfo()">
+                                                    <option value="">Choose a Cab...</option>
+                                                    <?php foreach ($cabsMaster as $c): ?>
+                                                        <option value="<?php echo $c['id']; ?>" 
+                                                                data-driver="<?php echo htmlspecialchars($c['driver_name'] ?? ''); ?>" 
+                                                                data-contact="<?php echo htmlspecialchars($c['driver_contact'] ?? ''); ?>"
+                                                                <?php echo (isset($arrangementData['cab_no']) && $arrangementData['cab_no'] == $c['id']) ? 'selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars($c['vehicle_number']); ?> (<?php echo htmlspecialchars($c['vehicle_type']); ?>) - <?php echo htmlspecialchars($c['location_name'] ?? 'N/A'); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Pickup Time <span class="text-danger">*</span></label>
+                                                <input type="datetime-local" name="pickup_time" class="form-control" value="<?php echo (isset($arrangementData['pickup_time']) && $arrangementData['pickup_time']) ? date('Y-m-d\TH:i', strtotime($arrangementData['pickup_time'])) : ''; ?>">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Driver Name</label>
+                                                <input type="text" name="driver_name" id="driver_name" class="form-control bg-light" value="<?php echo htmlspecialchars($arrangementData['driver_name'] ?? ''); ?>" placeholder="Auto-filled" readonly>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Driver Contact</label>
+                                                <input type="text" name="driver_contact" id="driver_contact" class="form-control bg-light" value="<?php echo htmlspecialchars($arrangementData['driver_contact'] ?? ''); ?>" placeholder="Auto-filled" readonly>
+                                            </div>
+                                            <div class="col-md-12 mt-2">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Upload Cab/Transport Details <span class="text-lowercase fw-normal">(Optional PDF/Image)</span></label>
+                                                <input type="file" name="cab_voucher" class="form-control form-control-sm" accept=".pdf,image/*">
+                                                <?php if(!empty($arrangementData['cab_voucher'])): ?>
+                                                    <div class="mt-1 small"><a href="../<?php echo htmlspecialchars($arrangementData['cab_voucher']); ?>" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-danger me-1"></i>View Current Voucher</a></div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="row g-3 mb-4">
-                                    <div class="col-md-12">
-                                        <label class="form-label fw-medium text-muted small text-uppercase">Hotel Selection <span class="text-danger">*</span></label>
-                                        <select name="hotel_id" id="hotel_select" class="form-select">
-                                            <option value="">Choose a Hotel...</option>
-                                            <?php foreach ($hotelsMaster as $h): ?>
-                                                <option value="<?php echo $h['id']; ?>" <?php echo (isset($arrangementData['hotel_id']) && $arrangementData['hotel_id'] == $h['id']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($h['hotel_name']); ?> - <?php echo htmlspecialchars($h['location_name'] ?? 'N/A'); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
+                                <div class="card border border-emerald-subtle shadow-sm mb-4">
+                                    <div class="card-header bg-emerald-subtle text-emerald fw-bold text-uppercase small py-2">
+                                        <i class="fas fa-hotel me-2"></i>Hotel Selection
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium small text-muted text-uppercase">Check-In <span class="text-danger">*</span></label>
-                                        <input type="datetime-local" name="check_in" class="form-control" value="<?php echo (isset($arrangementData['check_in']) && $arrangementData['check_in']) ? date('Y-m-d\TH:i', strtotime($arrangementData['check_in'])) : ''; ?>">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium small text-muted text-uppercase">Check-Out <span class="text-danger">*</span></label>
-                                        <input type="datetime-local" name="check_out" class="form-control" value="<?php echo (isset($arrangementData['check_out']) && $arrangementData['check_out']) ? date('Y-m-d\TH:i', strtotime($arrangementData['check_out'])) : ''; ?>">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium small text-muted text-uppercase">Room No. <span class="text-danger">*</span></label>
-                                        <input type="text" name="room_no" class="form-control" value="<?php echo htmlspecialchars($arrangementData['room_no'] ?? ''); ?>" placeholder="e.g. 201">
+                                    <div class="card-body p-4">
+                                        <div class="row g-3">
+                                            <div class="col-md-12">
+                                                <label class="form-label fw-medium text-muted small text-uppercase">Hotel Selection <span class="text-danger">*</span></label>
+                                                <select name="hotel_id" id="hotel_select" class="form-select">
+                                                    <option value="">Choose a Hotel...</option>
+                                                    <?php foreach ($hotelsMaster as $h): ?>
+                                                        <option value="<?php echo $h['id']; ?>" <?php echo (isset($arrangementData['hotel_id']) && $arrangementData['hotel_id'] == $h['id']) ? 'selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars($h['hotel_name']); ?> - <?php echo htmlspecialchars($h['location_name'] ?? 'N/A'); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-medium small text-muted text-uppercase">Check-In <span class="text-danger">*</span></label>
+                                                <input type="datetime-local" name="check_in" class="form-control" value="<?php echo (isset($arrangementData['check_in']) && $arrangementData['check_in']) ? date('Y-m-d\TH:i', strtotime($arrangementData['check_in'])) : ''; ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-medium small text-muted text-uppercase">Check-Out <span class="text-danger">*</span></label>
+                                                <input type="datetime-local" name="check_out" class="form-control" value="<?php echo (isset($arrangementData['check_out']) && $arrangementData['check_out']) ? date('Y-m-d\TH:i', strtotime($arrangementData['check_out'])) : ''; ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-medium small text-muted text-uppercase">Room No. <span class="text-danger">*</span></label>
+                                                <input type="text" name="room_no" class="form-control" value="<?php echo htmlspecialchars($arrangementData['room_no'] ?? ''); ?>" placeholder="e.g. 201">
+                                            </div>
+                                            <div class="col-md-12 mt-2">
+                                                <label class="form-label fw-medium small text-muted text-uppercase">Upload Hotel Voucher <span class="text-lowercase fw-normal">(Optional PDF/Image)</span></label>
+                                                <input type="file" name="hotel_voucher" class="form-control form-control-sm" accept=".pdf,image/*">
+                                                <?php if(!empty($arrangementData['hotel_voucher'])): ?>
+                                                    <div class="mt-1 small"><a href="../<?php echo htmlspecialchars($arrangementData['hotel_voucher']); ?>" target="_blank" class="text-decoration-none"><i class="fas fa-file-pdf text-danger me-1"></i>View Current Voucher</a></div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -521,15 +740,37 @@ require_once '../includes/header.php';
                     </h2>
                     <div id="collapseItinerary" class="accordion-collapse collapse" aria-labelledby="headingItinerary" data-bs-parent="#plannerAccordion">
                         <div class="accordion-body bg-white p-4">
-                            <form method="POST" class="bg-light p-3 rounded-3 mb-4">
-                                <input type="hidden" name="tourist_id" value="<?php echo $touristId; ?>">
-                                <div class="row g-2">
-                                    <div class="col-md-2"><input type="number" name="day_number" class="form-control" placeholder="Day" value="1"></div>
-                                    <div class="col-md-2"><input type="time" name="start_time" class="form-control"></div>
-                                    <div class="col-md-2"><input type="time" name="end_time" class="form-control"></div>
-                                    <div class="col-md-4"><input type="text" name="place_name" class="form-control" placeholder="Place Name"></div>
-                                    <div class="col-md-10 mt-2"><input type="text" name="activity" class="form-control" placeholder="Activity Details"></div>
-                                    <div class="col-md-2 mt-2"><button type="submit" name="add_itinerary" class="btn btn-emerald w-100">Add</button></div>
+                            <form method="POST" class="card border border-primary-subtle shadow-sm mb-4">
+                                <div class="card-header bg-primary-subtle text-primary fw-bold text-uppercase small py-2">
+                                    <i class="fas fa-plus-circle me-1"></i> Add Itinerary Entry
+                                </div>
+                                <div class="card-body p-3">
+                                    <input type="hidden" name="tourist_id" value="<?php echo $touristId; ?>">
+                                    <div class="row g-3">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-bold text-muted mb-1">Day</label>
+                                            <input type="number" name="day_number" class="form-control" placeholder="Day" value="1">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-bold text-muted mb-1">Start Time</label>
+                                            <input type="time" name="start_time" class="form-control">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-bold text-muted mb-1">End Time</label>
+                                            <input type="time" name="end_time" class="form-control">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold text-muted mb-1">Place Name</label>
+                                            <input type="text" name="place_name" class="form-control" placeholder="e.g. Taj Mahal">
+                                        </div>
+                                        <div class="col-md-10">
+                                            <label class="form-label small fw-bold text-muted mb-1">Activity Details</label>
+                                            <input type="text" name="activity" class="form-control" placeholder="Describe the activity...">
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            <button type="submit" name="add_itinerary" class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i> Add</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </form>
 
@@ -578,27 +819,34 @@ require_once '../includes/header.php';
                     </h2>
                     <div id="collapseFood" class="accordion-collapse collapse" aria-labelledby="headingFood" data-bs-parent="#plannerAccordion">
                         <div class="accordion-body bg-white p-4">
-                            <form method="POST" class="bg-light p-3 rounded-3 mb-4">
-                                <input type="hidden" name="tourist_id" value="<?php echo $touristId; ?>">
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-md-2">
-                                        <label class="form-label small fw-bold text-muted">Day <span class="text-danger">*</span></label>
-                                        <input type="number" name="food_day_number" class="form-control" placeholder="Day" value="1" min="1" required>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted">Breakfast <span class="text-danger">*</span></label>
-                                        <input type="text" name="breakfast" class="form-control" placeholder="e.g. Idly, Pongal or Hotel Buffet" required>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted">Lunch <span class="text-danger">*</span></label>
-                                        <input type="text" name="lunch" class="form-control" placeholder="e.g. South Indian Meals / Veg Biryani" required>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted">Dinner <span class="text-danger">*</span></label>
-                                        <input type="text" name="dinner" class="form-control" placeholder="e.g. Chappathi, Dosa or Chinese" required>
-                                    </div>
-                                    <div class="col-md-1">
-                                        <button type="submit" name="save_food_plan" class="btn btn-emerald w-100">Save</button>
+                            <form method="POST" class="card border border-warning-subtle shadow-sm mb-4">
+                                <div class="card-header bg-warning-subtle text-warning-emphasis fw-bold text-uppercase small py-2">
+                                    <i class="fas fa-plus-circle me-1"></i> Add Food Plan
+                                </div>
+                                <div class="card-body p-3">
+                                    <input type="hidden" name="tourist_id" value="<?php echo $touristId; ?>">
+                                    <div class="row g-3">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-bold text-muted mb-1">Day <span class="text-danger">*</span></label>
+                                            <input type="number" name="food_day_number" class="form-control" placeholder="Day" value="1" min="1" required>
+                                        </div>
+                                        <div class="col-md-10 d-flex gap-2 mb-2 d-none d-md-flex"></div> <!-- spacer -->
+                                        
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-bold text-muted mb-1">Breakfast <span class="text-danger">*</span></label>
+                                            <input type="text" name="breakfast" class="form-control" placeholder="e.g. Idly, Pongal" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-bold text-muted mb-1">Lunch <span class="text-danger">*</span></label>
+                                            <input type="text" name="lunch" class="form-control" placeholder="e.g. South Indian Meals" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-bold text-muted mb-1">Dinner <span class="text-danger">*</span></label>
+                                            <input type="text" name="dinner" class="form-control" placeholder="e.g. Chappathi, Dosa" required>
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            <button type="submit" name="save_food_plan" class="btn btn-warning w-100 text-dark fw-bold"><i class="fas fa-save me-1"></i> Save</button>
+                                        </div>
                                     </div>
                                 </div>
                             </form>

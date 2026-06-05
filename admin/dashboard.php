@@ -82,7 +82,7 @@ require_once '../includes/header.php';
                     <td><?php echo $row['email']; ?></td>
                     <td><?php echo $row['stay_days']; ?> Days</td>
                     <td>
-                        <?php if ($row['verification_status']): ?>
+                        <?php if ($row['status']): ?>
                             <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">Verified</span>
                         <?php else: ?>
                             <span class="badge bg-warning-subtle text-warning px-3 py-2 rounded-pill">Pending</span>

@@ -147,6 +147,9 @@ $foodArrangements = $stmt->fetchAll();
                                     <div class="fw-bold"><?php echo $arrangements['hotel_name']; ?></div>
                                     <div class="small text-muted"><?php echo $arrangements['hotel_location']; ?></div>
                                     <div class="badge bg-light text-dark border mt-1">Room: <?php echo $arrangements['room_no'] ?: 'TBD'; ?></div>
+                                    <?php if (!empty($arrangements['hotel_voucher'])): ?>
+                                        <div class="mt-2"><a href="../<?php echo htmlspecialchars($arrangements['hotel_voucher']); ?>" target="_blank" class="btn btn-sm btn-outline-success py-0" style="font-size: 0.7rem;"><i class="fas fa-file-pdf me-1"></i>Hotel Voucher</a></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="small mb-1"><i class="fas fa-phone-alt me-2 text-muted"></i><?php echo $arrangements['hotel_contact']; ?></div>
@@ -170,6 +173,9 @@ $foodArrangements = $stmt->fetchAll();
                                 <td class="px-4 py-3">
                                     <div class="fw-bold"><?php echo $arrangements['vehicle_number']; ?></div>
                                     <div class="small text-muted"><?php echo $arrangements['vehicle_type']; ?> (<?php echo $arrangements['cab_provider']; ?>)</div>
+                                    <?php if (!empty($arrangements['cab_voucher'])): ?>
+                                        <div class="mt-2"><a href="../<?php echo htmlspecialchars($arrangements['cab_voucher']); ?>" target="_blank" class="btn btn-sm btn-outline-primary py-0" style="font-size: 0.7rem;"><i class="fas fa-file-pdf me-1"></i>Cab Details</a></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="fw-bold small"><?php echo $arrangements['driver_name']; ?> (Driver)</div>
@@ -185,17 +191,40 @@ $foodArrangements = $stmt->fetchAll();
                             <?php if (!empty($arrangements['flight_details']) || !empty($arrangements['arrival_date'])): ?>
                             <tr>
                                 <td class="px-4 py-3">
-                                    <div class="d-flex align-items-center">
+                                    <div class="d-flex align-items-center mb-2">
                                         <div class="bg-warning-subtle text-warning p-2 rounded-3 me-3">
                                             <i class="fas fa-plane-arrival"></i>
                                         </div>
-                                        <span class="fw-bold">Flight / Arrival</span>
+                                        <span class="fw-bold">Onward Flight</span>
                                     </div>
+                                    <?php if (!empty($arrangements['return_flight_details'])): ?>
+                                    <div class="d-flex align-items-center mt-3">
+                                        <div class="bg-info-subtle text-info p-2 rounded-3 me-3">
+                                            <i class="fas fa-plane-departure"></i>
+                                        </div>
+                                        <span class="fw-bold">Return Flight</span>
+                                    </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="fw-bold"><?php echo htmlspecialchars($arrangements['flight_details']); ?></div>
                                     <?php if (!empty($arrangements['pnr_number'])): ?>
                                         <div class="badge bg-warning-subtle text-warning border mt-1">PNR: <?php echo htmlspecialchars($arrangements['pnr_number']); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($arrangements['flight_ticket'])): ?>
+                                        <div class="mt-1"><a href="../<?php echo htmlspecialchars($arrangements['flight_ticket']); ?>" target="_blank" class="btn btn-sm btn-outline-warning py-0" style="font-size: 0.7rem;"><i class="fas fa-file-pdf me-1"></i>Flight Ticket</a></div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($arrangements['return_flight_details'])): ?>
+                                    <div class="mt-3">
+                                        <div class="fw-bold"><?php echo htmlspecialchars($arrangements['return_flight_details']); ?></div>
+                                        <?php if (!empty($arrangements['return_pnr_number'])): ?>
+                                            <div class="badge bg-info-subtle text-info border mt-1">PNR: <?php echo htmlspecialchars($arrangements['return_pnr_number']); ?></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($arrangements['return_flight_ticket'])): ?>
+                                            <div class="mt-1"><a href="../<?php echo htmlspecialchars($arrangements['return_flight_ticket']); ?>" target="_blank" class="btn btn-sm btn-outline-info py-0" style="font-size: 0.7rem;"><i class="fas fa-file-pdf me-1"></i>Return Ticket</a></div>
+                                        <?php endif; ?>
+                                    </div>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
@@ -204,7 +233,7 @@ $foodArrangements = $stmt->fetchAll();
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="bg-warning-subtle text-warning p-2 rounded text-center small fw-bold">
+                                    <div class="bg-warning-subtle text-warning p-2 rounded text-center small fw-bold mb-2">
                                         Arrival: <?php 
                                             if (!empty($arrangements['arrival_date'])) {
                                                 echo date('d M Y', strtotime($arrangements['arrival_date']));
@@ -216,6 +245,16 @@ $foodArrangements = $stmt->fetchAll();
                                             }
                                         ?>
                                     </div>
+                                    <?php if (!empty($arrangements['return_date'])): ?>
+                                    <div class="bg-info-subtle text-info p-2 rounded text-center small fw-bold mt-2">
+                                        Return: <?php 
+                                            echo date('d M Y', strtotime($arrangements['return_date']));
+                                            if (!empty($arrangements['return_time'])) {
+                                                echo ' | ' . date('H:i', strtotime($arrangements['return_time']));
+                                            }
+                                        ?>
+                                    </div>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endif; ?>
@@ -353,10 +392,10 @@ $foodArrangements = $stmt->fetchAll();
                     <div class="card h-100 shadow-sm border-0 border-top border-4 border-warning">
                         <div class="card-body p-4 p-lg-5 d-flex flex-column justify-content-between">
                             <div>
-                                <h5 class="fw-bold mb-4"><i class="fas fa-plane-arrival text-warning me-3"></i>Flight & Arrival</h5>
+                                <h5 class="fw-bold mb-4"><i class="fas fa-plane text-warning me-3"></i>Flight Information</h5>
                                 
                                 <div class="p-3 bg-warning-subtle rounded-4 mb-4 text-center">
-                                    <span class="info-label text-warning">Expected Arrival</span>
+                                    <span class="info-label text-warning">Onward Arrival</span>
                                     <div class="h4 fw-bold text-warning m-0">
                                         <?php echo !empty($arrangements['arrival_time']) ? date('H:i', strtotime($arrangements['arrival_time'])) : 'TBD'; ?>
                                     </div>
@@ -365,16 +404,39 @@ $foodArrangements = $stmt->fetchAll();
                                     </div>
                                 </div>
 
-                                <div class="row g-2 mb-4">
+                                <div class="row g-2 mb-3 pb-3 border-bottom">
                                     <div class="col-6">
-                                        <span class="info-label">Flight/Train Info</span>
+                                        <span class="info-label">Onward Flight</span>
                                         <h6 class="fw-bold mb-0 text-slate-900 small"><?php echo htmlspecialchars($arrangements['flight_details'] ?: 'TBD'); ?></h6>
                                     </div>
                                     <div class="col-6">
-                                        <span class="info-label">PNR Number</span>
+                                        <span class="info-label">Onward PNR</span>
                                         <h6 class="fw-bold mb-0 text-slate-900 small"><?php echo htmlspecialchars($arrangements['pnr_number'] ?: 'TBD'); ?></h6>
                                     </div>
                                 </div>
+                                
+                                <?php if (!empty($arrangements['return_flight_details'])): ?>
+                                <div class="p-3 bg-info-subtle rounded-4 mb-4 text-center">
+                                    <span class="info-label text-info">Return Departure</span>
+                                    <div class="h4 fw-bold text-info m-0">
+                                        <?php echo !empty($arrangements['return_time']) ? date('H:i', strtotime($arrangements['return_time'])) : 'TBD'; ?>
+                                    </div>
+                                    <div class="fw-bold small text-info opacity-75">
+                                        <?php echo !empty($arrangements['return_date']) ? date('d M Y', strtotime($arrangements['return_date'])) : 'TBD'; ?>
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <span class="info-label">Return Flight</span>
+                                        <h6 class="fw-bold mb-0 text-slate-900 small"><?php echo htmlspecialchars($arrangements['return_flight_details']); ?></h6>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="info-label">Return PNR</span>
+                                        <h6 class="fw-bold mb-0 text-slate-900 small"><?php echo htmlspecialchars($arrangements['return_pnr_number'] ?: 'TBD'); ?></h6>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                                 
                                 <?php if (!empty($arrangements['reach_time'])): ?>
                                     <div class="mb-4">

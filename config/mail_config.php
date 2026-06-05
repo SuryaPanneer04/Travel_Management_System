@@ -12,9 +12,9 @@ function sendMail($to, $subject, $body) {
     $user = 'suryapanneer04@gmail.com';
     $pass = 'xlwv dltg vhou bars';
     $from = 'suryapanneer04@gmail.com';
-    $fromName = 'VMS';
+    $fromName = 'TMS';
     $secure = 'TLS';
-    $footer = 'Regards, Team VMS';
+    $footer = 'Regards, Team TMS';
 
     try {
         if (!isset($pdo)) {

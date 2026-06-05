@@ -13,6 +13,7 @@ $query = "SELECT t.*, u.full_name as employee_name,
           COALESCE(arr.arrival_time) as arrival_time, 
           t.purpose_of_travel as requirements,
           arr.cab_no as cab_id, arr.hotel_id, arr.driver_name, arr.driver_contact, arr.pickup_time, arr.room_no, arr.check_in, arr.check_out, arr.pnr_number,
+          arr.return_date,arr.return_time,arr.return_flights_details,return_pnr_number,
           h.hotel_name, h.location as hotel_location, h.star_rating,
           c.vehicle_number, c.vehicle_type, c.provider_name as cab_provider,
           (SELECT COUNT(*) FROM itineraries WHERE tourist_id = t.id) as itinerary_count,
@@ -142,12 +143,16 @@ function viewFullDetails(data) {
                         <tr><td class="text-muted">Name:</td><td class="fw-bold">${data.name}</td></tr>
                         <tr><td class="text-muted">Email:</td><td>${data.email}</td></tr>
                         <tr><td class="text-muted">Arrival:</td><td class="fw-bold text-dark">${data.arrival_date || 'N/A'} @ ${data.arrival_time || ''}</td></tr>
-                        <tr><td class="text-muted">Pax:</td><td class="fw-bold">${data.people_count || 'N/A'}</td></tr>
                         <tr><td class="text-muted">Flight:</td><td>${data.flight_details || 'N/A'}</td></tr>
                         <tr><td class="text-muted">PNR:</td><td class="fw-bold text-warning">${data.pnr_number || 'N/A'}</td></tr>
                         <tr><td class="text-muted">Reqs:</td><td class="text-wrap">${data.requirements || 'None'}</td></tr>
                     </table>
-                </div>
+                    <br>
+                    <h6 class="fw-bold mb-3 text-uppercase small text-primary border-bottom pb-2">Departure details </h6>
+                    <tr><td class="text-muted">Date & Time: </td><td class="fw-bold text-dark">${data.return_date || 'N/A'} @ ${data.return_time || ''}</td></tr>
+                    <tr><td class="text-muted">Reqs:</td><td class="text-wrap">${data.return_flight_details || 'None'}</td></tr>
+                    <tr><td class="text-muted">Reqs:</td><td class="text-wrap">${data.return_pnr_number || 'None'}</td></tr>
+                    </div>
             </div>
             <div class="col-md-6">
                 <div class="p-3 bg-primary-subtle rounded-3 h-100">

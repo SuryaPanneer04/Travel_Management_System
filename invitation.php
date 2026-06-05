@@ -6,14 +6,37 @@ require_once 'config/mail_config.php';
 $success = '';
 $error = '';
 
+$reqId = null;
+$travelerData = null;
+if (isset($_GET['req_id'])) {
+    $reqId = base64_decode(urldecode($_GET['req_id']));
+} elseif (isset($_POST['req_id'])) {
+    $reqId = $_POST['req_id'];
+}
+
+if ($reqId) {
+    $trStmt = $pdo->prepare("SELECT * FROM travellerrequest WHERE id = ?");
+    $trStmt->execute([$reqId]);
+    $travelerData = $trStmt->fetch();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['name'];
-    $email = $_POST['email'];
-    $age = $_POST['age'];
-    $passport = $_POST['passport_number'];
-    $passport_val = $_POST['passport_validation'];
-    $purpose = $_POST['purpose_of_travel'];
-    $visa_type = $_POST['visa_type'];
+    if ($travelerData) {
+        $name = $travelerData['fullname'];
+        $email = $travelerData['email'];
+        $age = $travelerData['age'];
+        $passport = $travelerData['passport_number'];
+        $passport_val = $travelerData['passport_validation'];
+    } else {
+        $name = $_POST['name'] ?? '';
+        $email = $_POST['email'] ?? '';
+        $age = $_POST['age'] ?? '';
+        $passport = $_POST['passport_number'] ?? '';
+        $passport_val = $_POST['passport_validation'] ?? '';
+    }
+    
+    $purpose = $_POST['purpose_of_travel'] ?? '';
+    $visa_type = $_POST['visa_type'] ?? '';
     $travel_country = $_POST['travel_country'];
     $start_date = $_POST['travel_start_date'];
     $end_date = $_POST['travel_end_date'];
@@ -25,9 +48,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     $passport_scan = '';
-    if (isset($_FILES['passport_scan']) && $_FILES['passport_scan']['error'] === UPLOAD_ERR_OK) {
-        $passport_scan = $upload_dir . time() . '_' . basename($_FILES['passport_scan']['name']);
-        move_uploaded_file($_FILES['passport_scan']['tmp_name'], $passport_scan);
+    if (isset($_POST['req_id']) && !empty($_POST['req_id'])) {
+        $trStmt = $pdo->prepare("SELECT passport_scan FROM travellerrequest WHERE id = ?");
+        $trStmt->execute([$_POST['req_id']]);
+        $trData = $trStmt->fetch();
+        if ($trData && !empty($trData['passport_scan'])) {
+            $passport_scan = $trData['passport_scan'];
+        }
+    } else {
+        if (isset($_FILES['passport_scan']) && $_FILES['passport_scan']['error'] === UPLOAD_ERR_OK) {
+            $passport_scan = $upload_dir . time() . '_' . basename($_FILES['passport_scan']['name']);
+            move_uploaded_file($_FILES['passport_scan']['tmp_name'], $passport_scan);
+        }
     }
     
     $signature = '';
@@ -57,10 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $emp_id = $hrUser ? $hrUser['id'] : NULL;
 
         $stmt = $pdo->prepare("INSERT INTO tourist_entries 
-            (name, email, age, passport_number, passport_validation, purpose_of_travel, visa_type, travel_country, travel_start_date, travel_end_date, stay_days, passport_scan, signature, visa_scan, employee_id) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            (name, email, age, passport_number, passport_validation, purpose_of_travel, visa_type, travel_country, travel_start_date, travel_end_date, stay_days, passport_scan, signature, visa_scan, employee_id, req_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
-        $stmt->execute([$name, $email, $age, $passport, $passport_val, $purpose, $visa_type, $travel_country, $start_date, $end_date, $stay_days, $passport_scan, $signature, $visa_scan, $emp_id]);
+        $stmt->execute([$name, $email, $age, $passport, $passport_val, $purpose, $visa_type, $travel_country, $start_date, $end_date, $stay_days, $passport_scan, $signature, $visa_scan, $emp_id, $reqId]);
         $tId = $pdo->lastInsertId();
 
         // Handle Companions
@@ -206,34 +238,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php endif; ?>
                         
                         <form method="POST" action="" enctype="multipart/form-data">
-                            <h4 class="fw-bold mb-4 text-dark border-bottom pb-2">Traveler Details</h4>
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-6">
-                                    <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                                    <input type="text" name="name" class="form-control" required placeholder="John Doe">
-                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Enter your full name exactly as it appears on your passport.</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Email Address <span class="text-danger">*</span></label>
-                                    <input type="email" name="email" class="form-control" required placeholder="john@example.com">
-                                    <div class="helper-text"><i class="fas fa-info-circle"></i> We will send your itinerary and updates to this email.</div>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Age <span class="text-danger">*</span></label>
-                                    <input type="number" name="age" class="form-control" required min="1">
-                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Your current age in years.</div>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Passport Number <span class="text-danger">*</span></label>
-                                    <input type="text" name="passport_number" class="form-control" required>
-                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Provide your valid passport number.</div>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Passport Validation <span class="text-danger">*</span></label>
-                                    <input type="date" name="passport_validation" class="form-control" required>
-                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Passport must be valid for at least 6 months.</div>
-                                </div>
-                            </div>
+                            <?php if ($reqId): ?>
+                                <input type="hidden" name="req_id" value="<?php echo htmlspecialchars($reqId); ?>">
+                            <?php endif; ?>
+
 
                             <h4 class="fw-bold mb-4 text-dark border-bottom pb-2 mt-5">Trip Details</h4>
                             <div class="row g-4">
@@ -273,8 +281,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <label class="form-label">Travel to Country <span class="text-danger">*</span></label>
                                     <select name="travel_country" class="form-control" required>
                                         <option value="">Select Country...</option>
-                                        <option value="India">India</option>
-                                        <option value="Japan">Japan</option>
+                                        <option value="India" <?php echo ($travelerData && $travelerData['travel_country'] === 'India') ? 'selected' : ''; ?>>India</option>
+                                        <option value="Japan" <?php echo ($travelerData && $travelerData['travel_country'] === 'Japan') ? 'selected' : ''; ?>>Japan</option>
                                     </select>
                                     <div class="helper-text"><i class="fas fa-info-circle"></i> Select your destination country.</div>
                                 </div>
@@ -283,11 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             <h4 class="fw-bold mb-4 text-dark border-bottom pb-2 mt-5">Upload Documents</h4>
                             <div class="row g-4">
-                                <div class="col-md-4">
-                                    <label class="form-label">Passport Scan <span class="text-danger">*</span></label>
-                                    <input type="file" name="passport_scan" class="form-control" required accept="image/*,.pdf">
-                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Upload a clear, scanned copy of your passport's bio-data page (PDF or Image).</div>
-                                </div>
+
                                 <div class="col-md-4">
                                     <label class="form-label">Signature <span class="text-danger">*</span></label>
                                     <input type="file" name="signature" class="form-control" required accept="image/*">
