@@ -22,20 +22,15 @@ $stmt = $pdo->prepare("SELECT name FROM tourist_entries WHERE id = ?");
 $stmt->execute([$touristId]);
 $tourist = $stmt->fetch();
 
-// Fetch arrangements with related Master Data and Staff Info
+// Fetch arrangements with related Staff Info
 $stmt = $pdo->prepare("
     SELECT a.*, 
            COALESCE(a.flight_details) as flight_details,
            COALESCE(a.reach_time) as reach_time,
            COALESCE(a.arrival_date) as arrival_date,
            COALESCE(a.arrival_time) as arrival_time,
-           h.hotel_name, h.address as hotel_address, h.location as hotel_location, 
-           h.star_rating, h.contact_number as hotel_contact, h.email as hotel_email,
-           c.vehicle_number, c.vehicle_type, c.provider_name as cab_provider,
            u.username as staff_name
     FROM arrangements a
-    LEFT JOIN hotels h ON a.hotel_id = h.id
-    LEFT JOIN cabs c ON a.cab_no = c.id
     LEFT JOIN users u ON a.assigned_by = u.id
     WHERE a.tourist_id = ?
 ");
@@ -144,16 +139,16 @@ $foodArrangements = $stmt->fetchAll();
                                     </div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="fw-bold"><?php echo $arrangements['hotel_name']; ?></div>
-                                    <div class="small text-muted"><?php echo $arrangements['hotel_location']; ?></div>
-                                    <div class="badge bg-light text-dark border mt-1">Room: <?php echo $arrangements['room_no'] ?: 'TBD'; ?></div>
+                                    <div class="fw-bold"><?php echo htmlspecialchars($arrangements['hotel_name'] ?: 'TBD'); ?></div>
+                                    <div class="small text-muted"><?php echo htmlspecialchars($arrangements['hotel_location'] ?: 'Location TBD'); ?></div>
+                                    <div class="badge bg-light text-dark border mt-1">Room: <?php echo htmlspecialchars($arrangements['room_no'] ?: 'TBD'); ?></div>
                                     <?php if (!empty($arrangements['hotel_voucher'])): ?>
                                         <div class="mt-2"><a href="../<?php echo htmlspecialchars($arrangements['hotel_voucher']); ?>" target="_blank" class="btn btn-sm btn-outline-success py-0" style="font-size: 0.7rem;"><i class="fas fa-file-pdf me-1"></i>Hotel Voucher</a></div>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="small mb-1"><i class="fas fa-phone-alt me-2 text-muted"></i><?php echo $arrangements['hotel_contact']; ?></div>
-                                    <div class="small"><i class="fas fa-envelope me-2 text-muted"></i><?php echo $arrangements['hotel_email']; ?></div>
+                                    <div class="small mb-1"><i class="fas fa-phone-alt me-2 text-muted"></i><?php echo htmlspecialchars($arrangements['hotel_contact'] ?: 'TBD'); ?></div>
+                                    <div class="small"><i class="fas fa-envelope me-2 text-muted"></i><?php echo htmlspecialchars($arrangements['hotel_email'] ?: 'TBD'); ?></div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="small">Check-in: <span class="fw-bold text-dark"><?php echo $arrangements['check_in'] ? date('d M, H:i', strtotime($arrangements['check_in'])) : 'TBD'; ?></span></div>
@@ -171,15 +166,15 @@ $foodArrangements = $stmt->fetchAll();
                                     </div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="fw-bold"><?php echo $arrangements['vehicle_number']; ?></div>
-                                    <div class="small text-muted"><?php echo $arrangements['vehicle_type']; ?> (<?php echo $arrangements['cab_provider']; ?>)</div>
+                                    <div class="fw-bold"><?php echo htmlspecialchars($arrangements['cab_details'] ?: 'TBD'); ?></div>
+                                    <div class="small text-muted">Vehicle Details</div>
                                     <?php if (!empty($arrangements['cab_voucher'])): ?>
                                         <div class="mt-2"><a href="../<?php echo htmlspecialchars($arrangements['cab_voucher']); ?>" target="_blank" class="btn btn-sm btn-outline-primary py-0" style="font-size: 0.7rem;"><i class="fas fa-file-pdf me-1"></i>Cab Details</a></div>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="fw-bold small"><?php echo $arrangements['driver_name']; ?> (Driver)</div>
-                                    <div class="small"><i class="fas fa-phone-alt me-2 text-muted"></i><?php echo $arrangements['driver_contact']; ?></div>
+                                    <div class="fw-bold small"><?php echo htmlspecialchars($arrangements['driver_name'] ?: 'Driver TBD'); ?> (Driver)</div>
+                                    <div class="small"><i class="fas fa-phone-alt me-2 text-muted"></i><?php echo htmlspecialchars($arrangements['driver_contact'] ?: 'TBD'); ?></div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="bg-primary-subtle text-primary p-2 rounded text-center small fw-bold">
@@ -298,15 +293,16 @@ $foodArrangements = $stmt->fetchAll();
                             <div class="d-flex justify-content-between align-items-start mb-4">
                                 <h5 class="fw-bold m-0"><i class="fas fa-hotel text-emerald me-3"></i>Hotel Accommodation</h5>
                                 <div class="star-rating">
-                                    <?php for($i=1; $i<=5; $i++): ?>
-                                        <i class="fa<?php echo ($i <= $arrangements['star_rating']) ? 's' : 'r'; ?> fa-star"></i>
-                                    <?php endfor; ?>
+                                    <!-- Stars removed as they were part of master DB -->
+                                    <i class="fas fa-star text-warning"></i>
+                                    <i class="fas fa-star text-warning"></i>
+                                    <i class="fas fa-star text-warning"></i>
                                 </div>
                             </div>
                             
                             <div class="mb-4">
-                                <h4 class="fw-bold mb-1 text-slate-900"><?php echo $arrangements['hotel_name']; ?></h4>
-                                <p class="text-muted mb-0"><i class="fas fa-map-marker-alt me-2"></i><?php echo $arrangements['hotel_address']; ?>, <?php echo $arrangements['hotel_location']; ?></p>
+                                <h4 class="fw-bold mb-1 text-slate-900"><?php echo htmlspecialchars($arrangements['hotel_name'] ?: 'TBD'); ?></h4>
+                                <p class="text-muted mb-0"><i class="fas fa-map-marker-alt me-2"></i><?php echo htmlspecialchars($arrangements['hotel_location'] ?: 'Location TBD'); ?></p>
                             </div>
 
                             <div class="row g-3 mb-4">
@@ -334,13 +330,13 @@ $foodArrangements = $stmt->fetchAll();
                                 <div class="col-12">
                                     <div class="contact-pill small mb-2">
                                         <i class="fas fa-phone-alt"></i>
-                                        <span><?php echo $arrangements['hotel_contact'] ?: 'Contact not available'; ?></span>
+                                        <span><?php echo htmlspecialchars($arrangements['hotel_contact'] ?: 'Contact not available'); ?></span>
                                     </div>
                                 </div>
                                 <div class="col-12">
                                     <div class="contact-pill small mb-0">
                                         <i class="fas fa-envelope"></i>
-                                        <span><?php echo $arrangements['hotel_email'] ?: 'Email not available'; ?></span>
+                                        <span><?php echo htmlspecialchars($arrangements['hotel_email'] ?: 'Email not available'); ?></span>
                                     </div>
                                 </div>
                             </div>
@@ -363,10 +359,8 @@ $foodArrangements = $stmt->fetchAll();
                             <div class="mb-4">
                                 <span class="info-label">Vehicle Details</span>
                                 <div class="d-flex align-items-center gap-2">
-                                    <h6 class="fw-bold mb-0 text-slate-900"><?php echo $arrangements['vehicle_number']; ?></h6>
-                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill small"><?php echo $arrangements['vehicle_type']; ?></span>
+                                    <h6 class="fw-bold mb-0 text-slate-900"><?php echo htmlspecialchars($arrangements['cab_details'] ?: 'TBD'); ?></h6>
                                 </div>
-                                <p class="text-muted small m-0"><?php echo $arrangements['cab_provider']; ?></p>
                             </div>
 
                             <div class="bg-light p-4 rounded-4 border">
@@ -376,12 +370,14 @@ $foodArrangements = $stmt->fetchAll();
                                     </div>
                                     <div>
                                         <span class="info-label">Driver Assigned</span>
-                                        <div class="fw-bold h6 m-0"><?php echo $arrangements['driver_name']; ?></div>
+                                        <div class="fw-bold h6 m-0"><?php echo htmlspecialchars($arrangements['driver_name'] ?: 'TBD'); ?></div>
                                     </div>
                                 </div>
-                                <a href="tel:<?php echo $arrangements['driver_contact']; ?>" class="btn btn-primary w-100 rounded-pill shadow-sm">
+                                <?php if (!empty($arrangements['driver_contact'])): ?>
+                                <a href="tel:<?php echo htmlspecialchars($arrangements['driver_contact']); ?>" class="btn btn-primary w-100 rounded-pill shadow-sm">
                                     <i class="fas fa-phone me-2"></i>Call Driver
                                 </a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>

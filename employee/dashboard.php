@@ -24,7 +24,7 @@ $handledByMe = $handledByMeStmt->fetchColumn();
 $fullyArrangedStmt = $pdo->prepare("
     SELECT COUNT(*) FROM tourist_entries t
     JOIN arrangements a ON t.id = a.tourist_id
-    WHERE t.employee_id = ? AND a.hotel_id IS NOT NULL AND a.cab_no IS NOT NULL
+    WHERE t.employee_id = ? AND a.hotel_name IS NOT NULL AND a.cab_details IS NOT NULL
 ");
 $fullyArrangedStmt->execute([$empId]);
 $fullyArranged = $fullyArrangedStmt->fetchColumn();
@@ -152,6 +152,10 @@ require_once '../includes/header.php';
     $companionsStmt = $pdo->prepare("SELECT * FROM tourist_companions WHERE tourist_id = ?");
     $companionsStmt->execute([$row['id']]);
     $companions = $companionsStmt->fetchAll();
+    
+    $arrStmt = $pdo->prepare("SELECT * FROM arrangements WHERE tourist_id = ?");
+    $arrStmt->execute([$row['id']]);
+    $arrangement = $arrStmt->fetch();
 ?>
 <div class="modal fade text-start" id="passModal<?php echo $row['id']; ?>" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -193,6 +197,28 @@ require_once '../includes/header.php';
                                     <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Visa Type</div>
                                     <div style="font-size: 1.1rem; color: #0f172a; font-weight: 600;"><?php echo htmlspecialchars($row['visa_type'] ?? 'N/A'); ?></div>
                                 </div>
+                                <?php if ($arrangement && (!empty($arrangement['flight_details']) || !empty($arrangement['return_flight_details']))): ?>
+                                <div class="col-sm-12 mt-3 border-top pt-3">
+                                    <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;"><i class="fas fa-plane text-primary me-1"></i> Flight Details</div>
+                                    <div class="row g-2">
+                                        <div class="col-sm-6">
+                                            <div style="font-size: 0.85rem; color: #64748b;">Onward Flight</div>
+                                            <div style="font-size: 1rem; color: #0f172a; font-weight: 600;"><?php echo htmlspecialchars($arrangement['flight_details'] ?: 'N/A'); ?></div>
+                                            <?php if(!empty($arrangement['pnr_number'])): ?>
+                                                <div style="font-size: 0.8rem; color: #64748b;">PNR: <span class="fw-bold"><?php echo htmlspecialchars($arrangement['pnr_number']); ?></span></div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div style="font-size: 0.85rem; color: #64748b;">Return Flight</div>
+                                            <div style="font-size: 1rem; color: #0f172a; font-weight: 600;"><?php echo htmlspecialchars($arrangement['return_flight_details'] ?: 'N/A'); ?></div>
+                                            <?php if(!empty($arrangement['return_pnr_number'])): ?>
+                                                <div style="font-size: 0.8rem; color: #64748b;">PNR: <span class="fw-bold"><?php echo htmlspecialchars($arrangement['return_pnr_number']); ?></span></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+
                                 <div class="col-sm-12 mt-3 border-top pt-3">
                                     <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;">Uploaded Documents</div>
                                     <div class="d-flex gap-2 flex-wrap">
@@ -204,6 +230,18 @@ require_once '../includes/header.php';
                                         <?php endif; ?>
                                         <?php if (!empty($row['visa_scan'])): ?>
                                             <a href="../<?php echo htmlspecialchars($row['visa_scan']); ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm"><i class="fas fa-file-image me-1"></i> Visa Scan</a>
+                                        <?php endif; ?>
+                                        <?php if ($arrangement && !empty($arrangement['flight_ticket'])): ?>
+                                            <a href="../<?php echo htmlspecialchars($arrangement['flight_ticket']); ?>" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm"><i class="fas fa-ticket-alt me-1"></i> Ticket</a>
+                                        <?php endif; ?>
+                                        <?php if ($arrangement && !empty($arrangement['return_flight_ticket'])): ?>
+                                            <a href="../<?php echo htmlspecialchars($arrangement['return_flight_ticket']); ?>" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm"><i class="fas fa-plane-departure me-1"></i> Return Ticket</a>
+                                        <?php endif; ?>
+                                        <?php if ($arrangement && !empty($arrangement['hotel_voucher'])): ?>
+                                            <a href="../<?php echo htmlspecialchars($arrangement['hotel_voucher']); ?>" target="_blank" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm"><i class="fas fa-hotel me-1"></i> Hotel</a>
+                                        <?php endif; ?>
+                                        <?php if ($arrangement && !empty($arrangement['cab_voucher'])): ?>
+                                            <a href="../<?php echo htmlspecialchars($arrangement['cab_voucher']); ?>" target="_blank" class="btn btn-sm btn-outline-info rounded-pill px-3 shadow-sm"><i class="fas fa-car me-1"></i> Cab</a>
                                         <?php endif; ?>
                                     </div>
                                 </div>

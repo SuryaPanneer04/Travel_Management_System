@@ -55,24 +55,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($trData && !empty($trData['passport_scan'])) {
             $passport_scan = $trData['passport_scan'];
         }
-    } else {
-        if (isset($_FILES['passport_scan']) && $_FILES['passport_scan']['error'] === UPLOAD_ERR_OK) {
-            $passport_scan = $upload_dir . time() . '_' . basename($_FILES['passport_scan']['name']);
-            move_uploaded_file($_FILES['passport_scan']['tmp_name'], $passport_scan);
-        }
     }
     
     $signature = '';
-    if (isset($_FILES['signature']) && $_FILES['signature']['error'] === UPLOAD_ERR_OK) {
-        $signature = $upload_dir . time() . '_' . basename($_FILES['signature']['name']);
-        move_uploaded_file($_FILES['signature']['tmp_name'], $signature);
-    }
-    
     $visa_scan = '';
-    if (isset($_FILES['visa_scan']) && $_FILES['visa_scan']['error'] === UPLOAD_ERR_OK) {
-        $visa_scan = $upload_dir . time() . '_' . basename($_FILES['visa_scan']['name']);
-        move_uploaded_file($_FILES['visa_scan']['tmp_name'], $visa_scan);
-    }
+    
+    // Flight details
+    $flight_details = $_POST['flight_details'] ?? '';
+    $pnr_number = $_POST['pnr_number'] ?? '';
+    $reach_time = !empty($_POST['reach_time']) ? $_POST['reach_time'] : null;
+    $arrival_date = !empty($_POST['arrival_date']) ? $_POST['arrival_date'] : null;
+    $arrival_time = !empty($_POST['arrival_time']) ? $_POST['arrival_time'] : null;
+
+    $return_flight_details = $_POST['return_flight_details'] ?? '';
+    $return_pnr_number = $_POST['return_pnr_number'] ?? '';
+    $return_date = !empty($_POST['return_date']) ? $_POST['return_date'] : null;
+    $return_time = !empty($_POST['return_time']) ? $_POST['return_time'] : null;
+
+    $flight_ticket = '';
+    $return_flight_ticket = '';
     
     // Calculate stay days
     $dStart = new DateTime($start_date);
@@ -95,6 +96,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$name, $email, $age, $passport, $passport_val, $purpose, $visa_type, $travel_country, $start_date, $end_date, $stay_days, $passport_scan, $signature, $visa_scan, $emp_id, $reqId]);
         $tId = $pdo->lastInsertId();
 
+        $dateStr = date('Ymd');
+
+        // Now that we have $tId, process file uploads
+        if (empty($passport_scan) && isset($_FILES['passport_scan']) && $_FILES['passport_scan']['error'] === UPLOAD_ERR_OK) {
+            $cleanName = preg_replace('/[^A-Za-z0-9.\-]/', '_', basename($_FILES['passport_scan']['name']));
+            $passport_scan = $upload_dir . $tId . '_' . $dateStr . '_passport_' . $cleanName;
+            move_uploaded_file($_FILES['passport_scan']['tmp_name'], $passport_scan);
+        }
+        
+        if (isset($_FILES['signature']) && $_FILES['signature']['error'] === UPLOAD_ERR_OK) {
+            $cleanName = preg_replace('/[^A-Za-z0-9.\-]/', '_', basename($_FILES['signature']['name']));
+            $signature = $upload_dir . $tId . '_' . $dateStr . '_signature_' . $cleanName;
+            move_uploaded_file($_FILES['signature']['tmp_name'], $signature);
+        }
+        
+        if (isset($_FILES['visa_scan']) && $_FILES['visa_scan']['error'] === UPLOAD_ERR_OK) {
+            $cleanName = preg_replace('/[^A-Za-z0-9.\-]/', '_', basename($_FILES['visa_scan']['name']));
+            $visa_scan = $upload_dir . $tId . '_' . $dateStr . '_visa_' . $cleanName;
+            move_uploaded_file($_FILES['visa_scan']['tmp_name'], $visa_scan);
+        }
+
+        // Update tourist_entries with the uploaded paths
+        $updStmt = $pdo->prepare("UPDATE tourist_entries SET passport_scan = ?, signature = ?, visa_scan = ? WHERE id = ?");
+        $updStmt->execute([$passport_scan, $signature, $visa_scan, $tId]);
+
+        // Process flight tickets
+        if (isset($_FILES['flight_ticket']) && $_FILES['flight_ticket']['error'] === UPLOAD_ERR_OK) {
+            $cleanName = preg_replace('/[^A-Za-z0-9.\-]/', '_', basename($_FILES['flight_ticket']['name']));
+            $flight_ticket = $upload_dir . $tId . '_' . $dateStr . '_ft_' . $cleanName;
+            move_uploaded_file($_FILES['flight_ticket']['tmp_name'], $flight_ticket);
+        }
+
+        if (isset($_FILES['return_flight_ticket']) && $_FILES['return_flight_ticket']['error'] === UPLOAD_ERR_OK) {
+            $cleanName = preg_replace('/[^A-Za-z0-9.\-]/', '_', basename($_FILES['return_flight_ticket']['name']));
+            $return_flight_ticket = $upload_dir . $tId . '_' . $dateStr . '_rft_' . $cleanName;
+            move_uploaded_file($_FILES['return_flight_ticket']['tmp_name'], $return_flight_ticket);
+        }
+
+        // Insert flight arrangements into arrangements table
+        $assigner = $emp_id ? $emp_id : 1; // Fallback to 1 (admin) if no HR assigned
+        $arrStmt = $pdo->prepare("INSERT INTO arrangements 
+            (tourist_id, flight_details, pnr_number, reach_time, arrival_date, arrival_time, flight_ticket,
+             return_flight_details, return_pnr_number, return_date, return_time, return_flight_ticket, assigned_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $arrStmt->execute([
+            $tId, $flight_details, $pnr_number, $reach_time, $arrival_date, $arrival_time, $flight_ticket,
+            $return_flight_details, $return_pnr_number, $return_date, $return_time, $return_flight_ticket, $assigner
+        ]);
+
         // Handle Companions
         $companionCount = 0;
         $companionDetailsHtml = '';
@@ -113,19 +163,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $cPassportScan = '';
                 if (isset($_FILES['companion_passport_scan']['name'][$i]) && $_FILES['companion_passport_scan']['error'][$i] === UPLOAD_ERR_OK) {
-                    $cPassportScan = $upload_dir . time() . '_c' . $i . '_' . basename($_FILES['companion_passport_scan']['name'][$i]);
+                    $cleanName = preg_replace('/[^A-Za-z0-9.\-]/', '_', basename($_FILES['companion_passport_scan']['name'][$i]));
+                    $cPassportScan = $upload_dir . $tId . '_' . $dateStr . '_c' . $i . '_passport_' . $cleanName;
                     move_uploaded_file($_FILES['companion_passport_scan']['tmp_name'][$i], $cPassportScan);
                 }
                 
                 $cSignature = '';
                 if (isset($_FILES['companion_signature']['name'][$i]) && $_FILES['companion_signature']['error'][$i] === UPLOAD_ERR_OK) {
-                    $cSignature = $upload_dir . time() . '_c' . $i . '_' . basename($_FILES['companion_signature']['name'][$i]);
+                    $cleanName = preg_replace('/[^A-Za-z0-9.\-]/', '_', basename($_FILES['companion_signature']['name'][$i]));
+                    $cSignature = $upload_dir . $tId . '_' . $dateStr . '_c' . $i . '_signature_' . $cleanName;
                     move_uploaded_file($_FILES['companion_signature']['tmp_name'][$i], $cSignature);
                 }
                 
                 $cVisaScan = '';
                 if (isset($_FILES['companion_visa_scan']['name'][$i]) && $_FILES['companion_visa_scan']['error'][$i] === UPLOAD_ERR_OK) {
-                    $cVisaScan = $upload_dir . time() . '_c' . $i . '_' . basename($_FILES['companion_visa_scan']['name'][$i]);
+                    $cleanName = preg_replace('/[^A-Za-z0-9.\-]/', '_', basename($_FILES['companion_visa_scan']['name'][$i]));
+                    $cVisaScan = $upload_dir . $tId . '_' . $dateStr . '_c' . $i . '_visa_' . $cleanName;
                     move_uploaded_file($_FILES['companion_visa_scan']['tmp_name'][$i], $cVisaScan);
                 }
                 
@@ -289,6 +342,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             </div>
 
+                             <h4 class="fw-bold mb-4 text-dark border-bottom pb-2 mt-5">Flight Details</h4>
+                            <div class="row g-4 mb-4">
+                                <div class="col-12">
+                                    <h6 class="fw-bold text-primary"><i class="fas fa-plane-arrival me-2"></i>Onward Flight (Arrival)</h6>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Flight/Train Details <span class="text-danger">*</span></label>
+                                    <input type="text" name="flight_details" class="form-control" placeholder="e.g. Indigo 6E-123" required>
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Enter the airline and flight number (or train details).</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Flight PNR Number <span class="text-danger">*</span></label>
+                                    <input type="text" name="pnr_number" class="form-control" placeholder="e.g. AB12CD" required>
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Enter the 6-character PNR booking reference.</div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Upload Flight Ticket <span class="text-muted small">(PDF/Image)</span></label>
+                                    <input type="file" name="flight_ticket" class="form-control" accept=".pdf,image/*">
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Upload a copy of your confirmed ticket.</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Expected Reach Time <span class="text-danger">*</span></label>
+                                    <input type="datetime-local" name="reach_time" class="form-control" required>
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> When you expect to reach the hotel/destination.</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Arrival Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="arrival_date" class="form-control" required>
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Date of your arrival flight.</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Arrival Time <span class="text-danger">*</span></label>
+                                    <input type="time" name="arrival_time" class="form-control" required>
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Time your flight lands at the destination.</div>
+                                </div>
+
+                                <div class="col-12 mt-4">
+                                    <h6 class="fw-bold text-primary"><i class="fas fa-plane-departure me-2"></i>Return Flight (Departure) <span class="text-muted small">(Optional)</span></h6>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Return Flight Details</label>
+                                    <input type="text" name="return_flight_details" class="form-control" placeholder="e.g. Air India AI-456">
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Enter your return flight information.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Return PNR Number</label>
+                                    <input type="text" name="return_pnr_number" class="form-control" placeholder="e.g. XY98ZU">
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> PNR for the return journey.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Return Date</label>
+                                    <input type="date" name="return_date" class="form-control">
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Date of your return flight.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Return Time</label>
+                                    <input type="time" name="return_time" class="form-control">
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Departure time of your return flight.</div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Upload Return Flight Ticket <span class="text-muted small">(PDF/Image)</span></label>
+                                    <input type="file" name="return_flight_ticket" class="form-control" accept=".pdf,image/*">
+                                    <div class="helper-text"><i class="fas fa-info-circle"></i> Upload a copy of your return ticket.</div>
+                                </div>
+                            </div>
+                           
+
                             <h4 class="fw-bold mb-4 text-dark border-bottom pb-2 mt-5">Upload Documents</h4>
                             <div class="row g-4">
 
@@ -303,6 +423,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="helper-text"><i class="fas fa-info-circle"></i> Upload any existing visas or supporting documents if applicable.</div>
                                 </div>
                             </div>
+
                             
                             <!-- Companions Section -->
                             <div class="mt-4 border-top pt-4">

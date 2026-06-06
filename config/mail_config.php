@@ -99,7 +99,9 @@ function sendMail($to, $subject, $body) {
         fclose($socket);
         return true;
     } catch (Exception $e) {
-        error_log("SMTP Error: " . $e->getMessage());
+        // error_log("SMTP Error: " . $e->getMessage());
+        echo "SMTP Error: " . $e->getMessage();
+        die(); // Idhu potaal error screen-la apdiye ninnu ungaluku theriya varum
         return false;
     }
 }

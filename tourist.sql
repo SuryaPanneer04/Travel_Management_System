@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 03, 2026 at 01:23 PM
+-- Generation Time: Jun 06, 2026 at 08:32 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -30,10 +30,10 @@ SET time_zone = "+00:00";
 CREATE TABLE `arrangements` (
   `id` int(11) NOT NULL,
   `tourist_id` int(11) NOT NULL,
-  `hotel_id` int(11) DEFAULT NULL,
+  `hotel_name` varchar(255) DEFAULT NULL,
   `check_in` datetime DEFAULT NULL,
   `check_out` datetime DEFAULT NULL,
-  `cab_no` varchar(50) DEFAULT NULL,
+  `cab_details` varchar(255) DEFAULT NULL,
   `driver_name` varchar(100) DEFAULT NULL,
   `driver_contact` varchar(20) DEFAULT NULL,
   `pickup_time` datetime DEFAULT NULL,
@@ -52,8 +52,18 @@ CREATE TABLE `arrangements` (
   `return_flight_ticket` varchar(255) DEFAULT NULL,
   `return_pnr_number` varchar(50) DEFAULT NULL,
   `return_date` date DEFAULT NULL,
-  `return_time` time DEFAULT NULL
+  `return_time` time DEFAULT NULL,
+  `hotel_location` varchar(255) DEFAULT NULL,
+  `hotel_contact` varchar(100) DEFAULT NULL,
+  `hotel_email` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `arrangements`
+--
+
+INSERT INTO `arrangements` (`id`, `tourist_id`, `hotel_name`, `check_in`, `check_out`, `cab_details`, `driver_name`, `driver_contact`, `pickup_time`, `cab_voucher`, `room_no`, `hotel_voucher`, `assigned_by`, `created_at`, `flight_details`, `flight_ticket`, `reach_time`, `arrival_date`, `arrival_time`, `pnr_number`, `return_flight_details`, `return_flight_ticket`, `return_pnr_number`, `return_date`, `return_time`, `hotel_location`, `hotel_contact`, `hotel_email`) VALUES
+(20, 37, 'Blue Moon', '2026-06-10 11:03:00', '2026-06-13 11:03:00', 'Innova TN02 BK 9726', 'Kumar', '9884012346', '2026-06-10 12:02:00', NULL, '202', NULL, 2, '2026-06-06 05:30:32', 'indigo', '', '2026-06-10 10:59:00', '2026-06-12', '11:59:00', 'AB1234', 'Air india', '', 'xy12345', '2026-06-12', '12:00:00', 'Mount Road Chennai', '9876456327', 'Blue@gmail.com');
 
 -- --------------------------------------------------------
 
@@ -108,6 +118,13 @@ CREATE TABLE `food_arrangements` (
   `dinner` varchar(255) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `food_arrangements`
+--
+
+INSERT INTO `food_arrangements` (`id`, `tourist_id`, `day_number`, `breakfast`, `lunch`, `dinner`, `created_at`) VALUES
+(21, 37, 1, 'idly', 'meals', 'chappathi', '2026-06-06 05:51:58');
 
 -- --------------------------------------------------------
 
@@ -167,8 +184,7 @@ CREATE TABLE `itineraries` (
 --
 
 INSERT INTO `itineraries` (`id`, `tourist_id`, `day_number`, `start_time`, `end_time`, `place_name`, `activity`, `assigned_by`, `created_at`) VALUES
-(8, 23, 1, '10:30:00', '11:25:00', 'marina beach', 'photoshoot', 2, '2026-06-01 03:55:42'),
-(9, 27, 1, '18:31:00', '22:31:00', 'marina beach', 'photoshoot', 2, '2026-06-03 07:02:06');
+(15, 37, 1, '12:21:00', '14:21:00', 'marina beach', 'photoshoot', 2, '2026-06-06 05:51:50');
 
 -- --------------------------------------------------------
 
@@ -279,13 +295,6 @@ CREATE TABLE `tourist_companions` (
   `visa_scan` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `tourist_companions`
---
-
-INSERT INTO `tourist_companions` (`id`, `tourist_id`, `name`, `age`, `passport_number`, `passport_validation`, `passport_scan`, `signature`, `visa_scan`) VALUES
-(2, 28, 'priya', 36, '638273821', '2029-06-20', 'uploads/1780482320_c0_download.jpg', 'uploads/1780482320_c0_download.jpg', 'uploads/1780482320_c0_download.jpg');
-
 -- --------------------------------------------------------
 
 --
@@ -311,15 +320,46 @@ CREATE TABLE `tourist_entries` (
   `passport_scan` varchar(255) DEFAULT NULL,
   `signature` varchar(255) DEFAULT NULL,
   `visa_scan` varchar(255) DEFAULT NULL,
-  `status` enum('Pending','Processing','Completed') DEFAULT 'Pending'
+  `status` enum('Pending','Processing','Completed') DEFAULT 'Pending',
+  `req_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `tourist_entries`
 --
 
-INSERT INTO `tourist_entries` (`id`, `name`, `email`, `age`, `passport_number`, `passport_validation`, `purpose_of_travel`, `travel_start_date`, `travel_end_date`, `stay_days`, `visa_type`, `travel_country`, `employee_id`, `token`, `created_at`, `passport_scan`, `signature`, `visa_scan`, `status`) VALUES
-(28, 'surya', 'suryapanneer04@gmail.com', 21, '7393731273', '2029-06-03', 'Tourism', '2026-06-10', '2026-06-12', 2, 'Multiple Entry Visa', 'India', 2, 'efa87c1a75b693062761b4430d32729d', '2026-06-03 10:25:20', 'uploads/1780482320_download.jpg', 'uploads/1780482320_download.jpg', 'uploads/1780482320_download.jpg', 'Pending');
+INSERT INTO `tourist_entries` (`id`, `name`, `email`, `age`, `passport_number`, `passport_validation`, `purpose_of_travel`, `travel_start_date`, `travel_end_date`, `stay_days`, `visa_type`, `travel_country`, `employee_id`, `token`, `created_at`, `passport_scan`, `signature`, `visa_scan`, `status`, `req_id`) VALUES
+(37, 'surya', 'suryapanneer04@gmail.com', 21, '123', '2028-06-10', 'Business', '2026-06-10', '2026-06-12', 2, 'Business Visa', 'India', 2, '65e8c51c398bf5d4f5985b2240debe52', '2026-06-06 05:30:32', 'uploads/1780723592_ps_download.jpg', 'uploads/37_20260606_signature_Screenshot__7_.png', 'uploads/37_20260606_visa_Screenshot__8_.png', 'Completed', 11);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `travellerrequest`
+--
+
+CREATE TABLE `travellerrequest` (
+  `id` int(11) NOT NULL,
+  `fullname` varchar(100) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `age` int(11) DEFAULT NULL,
+  `passport_number` varchar(100) DEFAULT NULL,
+  `passport_validation` date DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `travel_country` varchar(100) DEFAULT NULL,
+  `passport_scan` varchar(255) DEFAULT NULL,
+  `invitation_doc` varchar(255) DEFAULT NULL,
+  `employee_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `status` enum('Pending','Completed') DEFAULT 'Pending',
+  `accepted_file` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `travellerrequest`
+--
+
+INSERT INTO `travellerrequest` (`id`, `fullname`, `email`, `age`, `passport_number`, `passport_validation`, `address`, `travel_country`, `passport_scan`, `invitation_doc`, `employee_id`, `created_at`, `status`, `accepted_file`) VALUES
+(11, 'surya', 'suryapanneer04@gmail.com', 21, '123', '2028-06-10', 'living in Japan', 'India', 'uploads/1780723592_ps_download.jpg', 'uploads/1780723592_id_Expats Invitation and travel management system.pdf', 2, '2026-06-06 05:26:32', 'Completed', 'uploads/1780723696_accepted_TJPS-HRA-2606-006 - Mr. Moses - Invitation Letter.doc');
 
 -- --------------------------------------------------------
 
@@ -424,6 +464,12 @@ ALTER TABLE `tourist_entries`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `travellerrequest`
+--
+ALTER TABLE `travellerrequest`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
@@ -438,7 +484,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `arrangements`
 --
 ALTER TABLE `arrangements`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `cabs`
@@ -450,7 +496,7 @@ ALTER TABLE `cabs`
 -- AUTO_INCREMENT for table `food_arrangements`
 --
 ALTER TABLE `food_arrangements`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `hotels`
@@ -462,7 +508,7 @@ ALTER TABLE `hotels`
 -- AUTO_INCREMENT for table `itineraries`
 --
 ALTER TABLE `itineraries`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `locations`
@@ -492,13 +538,19 @@ ALTER TABLE `theme_settings`
 -- AUTO_INCREMENT for table `tourist_companions`
 --
 ALTER TABLE `tourist_companions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `tourist_entries`
 --
 ALTER TABLE `tourist_entries`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+
+--
+-- AUTO_INCREMENT for table `travellerrequest`
+--
+ALTER TABLE `travellerrequest`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `users`
